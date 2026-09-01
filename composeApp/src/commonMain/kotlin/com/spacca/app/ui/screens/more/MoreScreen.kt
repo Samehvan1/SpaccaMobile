@@ -1,0 +1,127 @@
+package com.spacca.app.ui.screens.more
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.spacca.app.data.BranchStore
+import com.spacca.app.data.location.LocationStore
+import com.spacca.app.ui.components.DefaultText
+import com.spacca.app.ui.components.clickableNoRipple
+import com.spacca.app.ui.theme.AccentGreen
+import com.spacca.app.ui.theme.BackgroundPrimary
+import com.spacca.app.ui.theme.DarkBorder
+import com.spacca.app.ui.theme.Grey
+import org.koin.compose.koinInject
+
+private data class MoreItem(
+    val label: String,
+    val icon: ImageVector
+)
+
+private val moreItems = listOf(
+    MoreItem("My Profile", Icons.Filled.Person),
+    MoreItem("My Orders", Icons.AutoMirrored.Filled.ReceiptLong),
+    MoreItem("My Points", Icons.Filled.Star),
+    MoreItem("My Favorites", Icons.Filled.Favorite)
+)
+
+@Composable
+fun MoreScreen(
+    onProfile: () -> Unit = {},
+    onOrders: () -> Unit = {},
+    onPoints: () -> Unit = {},
+    onFavorites: () -> Unit = {}
+) {
+    val actions = mapOf(
+        "My Profile" to onProfile,
+        "My Orders" to onOrders,
+        "My Points" to onPoints,
+        "My Favorites" to onFavorites
+    )
+
+    // Re-capture the current location whenever the More/menu tab is opened.
+    val locationStore = koinInject<LocationStore>()
+    val branchStore = koinInject<BranchStore>()
+    LaunchedEffect(Unit) {
+        branchStore.load()
+        locationStore.refresh()
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BackgroundPrimary)
+            .padding(16.dp)
+    ) {
+        DefaultText(
+            text = "More",
+            fontSize = 20,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(moreItems) { item ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(DarkBorder)
+                        .clickableNoRipple { actions[item.label]?.invoke() }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = item.icon,
+                        contentDescription = null,
+                        tint = AccentGreen,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    DefaultText(
+                        text = item.label,
+                        fontSize = 15,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = 12.dp)
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = Grey,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+    }
+}

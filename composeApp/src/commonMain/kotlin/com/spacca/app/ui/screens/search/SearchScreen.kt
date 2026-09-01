@@ -1,0 +1,119 @@
+package com.spacca.app.ui.screens.search
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.spacca.app.ui.components.DefaultEmptyState
+import com.spacca.app.ui.components.DefaultText
+import com.spacca.app.ui.components.DefaultTextField
+import com.spacca.app.ui.components.DefaultTopBar
+import com.spacca.app.ui.theme.AccentGreen
+import com.spacca.app.ui.theme.BackgroundPrimary
+import com.spacca.app.ui.theme.DarkBorder
+import com.spacca.app.ui.theme.LightGrey
+
+data class SearchResult(
+    val name: String,
+    val price: String
+)
+
+@Composable
+fun SearchScreen(
+    onBack: () -> Unit
+) {
+    var query by remember { mutableStateOf("") }
+
+    // Placeholder data
+    val allDrinks = listOf(
+        SearchResult("Espresso", "55 EGP"),
+        SearchResult("Cappuccino", "80 EGP"),
+        SearchResult("Latte", "85 EGP"),
+        SearchResult("Mocha Frappe", "95 EGP"),
+        SearchResult("Caramel Latte", "85 EGP"),
+        SearchResult("Americano", "65 EGP"),
+        SearchResult("Macchiato", "75 EGP"),
+        SearchResult("Vanilla Cappuccino", "90 EGP")
+    )
+
+    val results = if (query.isBlank()) allDrinks
+    else allDrinks.filter { it.name.contains(query, ignoreCase = true) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BackgroundPrimary)
+    ) {
+        DefaultTopBar(title = "Search", onBack = onBack)
+
+        // Search field
+        DefaultTextField(
+            value = query,
+            onValueChange = { query = it },
+            placeholder = "Search drinks...",
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+        )
+
+        if (results.isEmpty()) {
+            DefaultEmptyState(
+                title = "No results found",
+                body = "Try a different search term",
+                icon = Icons.Filled.Search
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(results) { drink ->
+                    SearchResultRow(drink)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchResultRow(drink: SearchResult) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(DarkBorder)
+            .padding(14.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        DefaultText(
+            text = drink.name,
+            fontSize = 14,
+            fontWeight = FontWeight.Medium
+        )
+        DefaultText(
+            text = drink.price,
+            fontSize = 13,
+            fontColor = AccentGreen,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
