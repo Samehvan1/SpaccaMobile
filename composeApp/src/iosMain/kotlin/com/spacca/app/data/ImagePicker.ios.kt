@@ -33,7 +33,7 @@ private class IosPickerDelegate(
 ) : NSObject(), PHPickerViewControllerDelegateProtocol {
 
     override fun picker(picker: PHPickerViewController, didFinishPicking: List<*>) {
-        picker.dismissViewControllerAnimated(animated = true, completion = null)
+        picker.dismissViewControllerAnimated(true, null)
 
         val result = didFinishPicking.firstOrNull() as? PHPickerResult
         val provider = result?.itemProvider
@@ -41,7 +41,7 @@ private class IosPickerDelegate(
         if (provider != null && provider.hasItemConformingToTypeIdentifier("public.image")) {
             provider.loadDataRepresentationForTypeIdentifier("public.image") { data: NSData?, _ ->
                 if (data != null) {
-                    val bytes = ByteArray(data.length.toInt()) { data[it].toByte() }
+                    val bytes = ByteArray(data.length.toInt()) { data[it.toULong()].toByte() }
                     cont.resume(bytes)
                 } else {
                     cont.resume(null)

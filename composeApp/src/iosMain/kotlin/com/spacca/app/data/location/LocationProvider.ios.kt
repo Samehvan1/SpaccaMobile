@@ -1,6 +1,7 @@
 package com.spacca.app.data.location
 
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.useContents
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import platform.CoreLocation.CLAuthorizationStatus
@@ -32,13 +33,11 @@ actual class LocationProvider {
 
         override fun locationManager(
             manager: CLLocationManager,
-            didUpdateLocations: List<*>
+            didUpdateToLocation: CLLocation,
+            fromLocation: CLLocation
         ) {
-            val loc = didUpdateLocations.lastOrNull() as? CLLocation
-            if (loc != null) {
-                manager.stopUpdatingLocation()
-                onResult(loc)
-            }
+            manager.stopUpdatingLocation()
+            onResult(didUpdateToLocation)
         }
 
         override fun locationManager(
