@@ -1,5 +1,7 @@
 package com.spacca.app.data
 
+import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -10,6 +12,7 @@ import platform.PhotosUI.PHPickerResult
 import platform.PhotosUI.PHPickerViewController
 import platform.PhotosUI.PHPickerViewControllerDelegateProtocol
 import platform.darwin.NSObject
+import platform.posix.memcpy
 import kotlin.coroutines.resume
 
 actual suspend fun pickImage(): ByteArray? {
@@ -41,7 +44,10 @@ private class IosPickerDelegate(
         if (provider != null && provider.hasItemConformingToTypeIdentifier("public.image")) {
             provider.loadDataRepresentationForTypeIdentifier("public.image") { data: NSData?, _ ->
                 if (data != null) {
-                    val bytes = ByteArray(data.length.toInt()) { data[it.toULong()].toByte() }
+                    val bytes = ByteArray(data.length.toInt())
+                    bytes.usePinned { pinned ->
+                        memcpy(pinned.addressOf(0), data.bytes, data.length)
+                    }
                     cont.resume(bytes)
                 } else {
                     cont.resume(null)

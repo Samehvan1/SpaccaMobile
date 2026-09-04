@@ -33,11 +33,13 @@ actual class LocationProvider {
 
         override fun locationManager(
             manager: CLLocationManager,
-            didUpdateToLocation: CLLocation,
-            fromLocation: CLLocation
+            didUpdateLocations: List<*>
         ) {
-            manager.stopUpdatingLocation()
-            onResult(didUpdateToLocation)
+            val loc = didUpdateLocations.lastOrNull() as? CLLocation
+            if (loc != null) {
+                manager.stopUpdatingLocation()
+                onResult(loc)
+            }
         }
 
         override fun locationManager(

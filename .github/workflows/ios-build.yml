@@ -15,7 +15,7 @@ on:
 jobs:
   compile-ios:
     name: Compile iOS Kotlin target
-    runs-on: macos-latest
+    runs-on: macos-14
     timeout-minutes: 30
 
     steps:
@@ -49,7 +49,7 @@ jobs:
 
   build-ios-app:
     name: Build iOS app (XcodeGen + xcodebuild)
-    runs-on: macos-latest
+    runs-on: macos-14
     timeout-minutes: 45
     needs: compile-ios
 
