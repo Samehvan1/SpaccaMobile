@@ -8,6 +8,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.savedstate.read
 import com.spacca.app.data.ApiService
 import com.spacca.app.data.CartStore
 import com.spacca.app.data.SessionStore
@@ -156,7 +157,7 @@ fun AppNavHost() {
             )
         }
         composable("${Routes.REGISTER}?phone={phone}") { backStackEntry ->
-            val phone = backStackEntry.arguments?.getString("phone") ?: ""
+            val phone = backStackEntry.arguments?.read { getStringOrNull("phone") } ?: ""
             RegisterScreen(
                 phone = phone,
                 onBack = { navController.popBackStack() },
@@ -168,7 +169,7 @@ fun AppNavHost() {
             )
         }
         composable("${Routes.OTP}?phone={phone}") { backStackEntry ->
-            val phone = backStackEntry.arguments?.getString("phone") ?: ""
+            val phone = backStackEntry.arguments?.read { getStringOrNull("phone") } ?: ""
             OtpScreen(
                 phone = phone,
                 onBack = { navController.popBackStack() },
@@ -182,7 +183,7 @@ fun AppNavHost() {
             )
         }
         composable("${Routes.PIN}?phone={phone}") { backStackEntry ->
-            val phone = backStackEntry.arguments?.getString("phone") ?: ""
+            val phone = backStackEntry.arguments?.read { getStringOrNull("phone") } ?: ""
             PinScreen(
                 phone = phone,
                 onBack = { navController.popBackStack() },
@@ -192,8 +193,8 @@ fun AppNavHost() {
             )
         }
         composable("${Routes.CONFIRM_PIN}?phone={phone}&pin={pin}") { backStackEntry ->
-            val phone = backStackEntry.arguments?.getString("phone") ?: ""
-            val pin = backStackEntry.arguments?.getString("pin") ?: ""
+            val phone = backStackEntry.arguments?.read { getStringOrNull("phone") } ?: ""
+            val pin = backStackEntry.arguments?.read { getStringOrNull("pin") } ?: ""
             ConfirmPinScreen(
                 phone = phone,
                 pin = pin,
@@ -202,7 +203,7 @@ fun AppNavHost() {
             )
         }
         composable("${Routes.LOGIN_PIN}?phone={phone}") { backStackEntry ->
-            val phone = backStackEntry.arguments?.getString("phone") ?: ""
+            val phone = backStackEntry.arguments?.read { getStringOrNull("phone") } ?: ""
             LoginPinScreen(
                 phone = phone,
                 onBack = { navController.popBackStack() },
@@ -244,8 +245,8 @@ fun AppNavHost() {
             )
         }
         composable("${Routes.PRODUCTS}?categoryId={categoryId}&name={name}") { backStackEntry ->
-            val categoryId = backStackEntry.arguments?.getString("categoryId")?.toIntOrNull() ?: 0
-            val name = backStackEntry.arguments?.getString("name") ?: "Products"
+            val categoryId = backStackEntry.arguments?.read { getStringOrNull("categoryId") }?.toIntOrNull() ?: 0
+            val name = backStackEntry.arguments?.read { getStringOrNull("name") } ?: "Products"
             ProductsScreen(
                 categoryId = categoryId,
                 categoryName = name,
@@ -258,11 +259,11 @@ fun AppNavHost() {
             )
         }
         composable("${Routes.PRODUCT}?drinkId={drinkId}&name={name}&price={price}&customizable={customizable}&imageUrl={imageUrl}") { backStackEntry ->
-            val drinkId = backStackEntry.arguments?.getString("drinkId")?.toIntOrNull() ?: 0
-            val name = backStackEntry.arguments?.getString("name") ?: "Product"
-            val price = backStackEntry.arguments?.getString("price")?.toDoubleOrNull() ?: 0.0
-            val customizable = backStackEntry.arguments?.getString("customizable")?.toBoolean() ?: false
-            val imageUrl = backStackEntry.arguments?.getString("imageUrl") ?: ""
+            val drinkId = backStackEntry.arguments?.read { getStringOrNull("drinkId") }?.toIntOrNull() ?: 0
+            val name = backStackEntry.arguments?.read { getStringOrNull("name") } ?: "Product"
+            val price = backStackEntry.arguments?.read { getStringOrNull("price") }?.toDoubleOrNull() ?: 0.0
+            val customizable = backStackEntry.arguments?.read { getStringOrNull("customizable") }?.toBoolean() ?: false
+            val imageUrl = backStackEntry.arguments?.read { getStringOrNull("imageUrl") } ?: ""
             val drink = DrinkDetail(
                 id = drinkId,
                 name = name,
@@ -292,10 +293,10 @@ fun AppNavHost() {
             )
         }
         composable("${Routes.CUSTOMIZATION}?drinkId={drinkId}&name={name}&price={price}&qty={qty}") { backStackEntry ->
-            val drinkId = backStackEntry.arguments?.getString("drinkId")?.toIntOrNull() ?: 0
-            val name = backStackEntry.arguments?.getString("name") ?: "Product"
-            val price = backStackEntry.arguments?.getString("price")?.toDoubleOrNull() ?: 0.0
-            val qty = backStackEntry.arguments?.getString("qty")?.toIntOrNull() ?: 1
+            val drinkId = backStackEntry.arguments?.read { getStringOrNull("drinkId") }?.toIntOrNull() ?: 0
+            val name = backStackEntry.arguments?.read { getStringOrNull("name") } ?: "Product"
+            val price = backStackEntry.arguments?.read { getStringOrNull("price") }?.toDoubleOrNull() ?: 0.0
+            val qty = backStackEntry.arguments?.read { getStringOrNull("qty") }?.toIntOrNull() ?: 1
             val cartStore = koinInject<CartStore>()
             CustomizationScreen(
                 drinkId = drinkId,
@@ -321,7 +322,7 @@ fun AppNavHost() {
             )
         }
         composable("${Routes.CUSTOMIZABLE_DRINK_DETAILS}?drinkId={drinkId}") { backStackEntry ->
-            val drinkId = backStackEntry.arguments?.getString("drinkId")?.toIntOrNull() ?: 0
+            val drinkId = backStackEntry.arguments?.read { getStringOrNull("drinkId") }?.toIntOrNull() ?: 0
             val cartStore = koinInject<CartStore>()
             CustomizableDrinkDetailsScreen(
                 drinkId = drinkId,
@@ -373,9 +374,9 @@ fun AppNavHost() {
             )
         }
         composable("${Routes.ORDER_SUMMARY}?branchId={branchId}&payment={payment}&pickupTime={pickupTime}") { backStackEntry ->
-            val branchId = backStackEntry.arguments?.getString("branchId")?.toIntOrNull() ?: 0
-            val payment = backStackEntry.arguments?.getString("payment") ?: "Cash"
-            val pickupTime = backStackEntry.arguments?.getString("pickupTime")
+            val branchId = backStackEntry.arguments?.read { getStringOrNull("branchId") }?.toIntOrNull() ?: 0
+            val payment = backStackEntry.arguments?.read { getStringOrNull("payment") } ?: "Cash"
+            val pickupTime = backStackEntry.arguments?.read { getStringOrNull("pickupTime") }
             val scope = androidx.compose.runtime.rememberCoroutineScope()
             val cartStore = koinInject<CartStore>()
             val api = koinInject<com.spacca.app.data.ApiService>()
@@ -423,7 +424,7 @@ fun AppNavHost() {
             )
         }
         composable("${Routes.ORDER_CONFIRMATION}?orderNumber={orderNumber}") { backStackEntry ->
-            val orderNumber = backStackEntry.arguments?.getString("orderNumber") ?: "0000"
+            val orderNumber = backStackEntry.arguments?.read { getStringOrNull("orderNumber") } ?: "0000"
             OrderConfirmationScreen(
                 orderNumber = orderNumber,
                 onTrackOrder = { navController.navigate(Routes.ORDERS) },
@@ -437,7 +438,7 @@ fun AppNavHost() {
             )
         }
         composable("${Routes.ORDER_DETAILS}?orderId={orderId}") { backStackEntry ->
-            val orderId = backStackEntry.arguments?.getString("orderId")?.toIntOrNull() ?: 0
+            val orderId = backStackEntry.arguments?.read { getStringOrNull("orderId") }?.toIntOrNull() ?: 0
             OrderDetailsScreen(
                 orderId = orderId,
                 onBack = { navController.popBackStack() },
@@ -472,7 +473,7 @@ fun AppNavHost() {
             )
         }
         composable("${Routes.DELETE_PROFILE}?reason={reason}") { backStackEntry ->
-            val reason = backStackEntry.arguments?.getString("reason") ?: ""
+            val reason = backStackEntry.arguments?.read { getStringOrNull("reason") } ?: ""
             DeleteProfileScreen(
                 reason = reason,
                 onBack = { navController.popBackStack() },

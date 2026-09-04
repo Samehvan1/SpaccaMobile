@@ -35,6 +35,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.spacca.app.util.formatPrice
 import com.spacca.app.data.ApiService
 import com.spacca.app.data.CatalogRepository
 import com.spacca.app.data.model.DrinkDetail
@@ -169,7 +170,7 @@ fun ProductDetailsScreen(
 
                     // Price
                     DefaultText(
-                        text = "EGP ${"%.2f".format(price)}",
+                        text = "EGP ${price.formatPrice()}",
                         fontSize = 16,
                         fontWeight = FontWeight.SemiBold,
                         fontColor = AccentGreen

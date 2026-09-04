@@ -31,6 +31,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.spacca.app.util.formatPrice
 import com.spacca.app.data.CatalogRepository
 import com.spacca.app.data.model.CategoryProduct
 import com.spacca.app.ui.components.DefaultButton
@@ -170,7 +171,7 @@ private fun ProductCard(
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             DefaultText(
-                text = "EGP ${"%.2f".format(product.price ?: 0.0)}",
+                text = "EGP ${(product.price ?: 0.0).formatPrice()}",
                 fontSize = 13,
                 fontWeight = FontWeight.Bold,
                 fontColor = AccentGreen

@@ -37,6 +37,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.spacca.app.util.formatPrice
 import com.spacca.app.data.ApiService
 import com.spacca.app.data.model.OrderDetail
 import com.spacca.app.ui.components.ButtonVariant
@@ -180,7 +181,7 @@ fun OrderDetailsScreen(
 
                         o.items?.forEach { item ->
                             val name = "${item.quantity ?: 1}× ${item.drinkName ?: "Item"}"
-                            val price = "EGP ${"%.2f".format(item.lineTotal ?: 0.0)}"
+                            val price = "EGP ${(item.lineTotal ?: 0.0).formatPrice()}"
                             OrderItemLine(name = name, price = price)
                             Spacer(modifier = Modifier.height(6.dp))
                         }
@@ -194,7 +195,7 @@ fun OrderDetailsScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             DefaultText(text = "Total", fontSize = 14, fontWeight = FontWeight.Bold)
-                            DefaultText(text = "EGP ${"%.2f".format(o.total ?: 0.0)}", fontSize = 14, fontWeight = FontWeight.Bold, fontColor = AccentGreen)
+                            DefaultText(text = "EGP ${(o.total ?: 0.0).formatPrice()}", fontSize = 14, fontWeight = FontWeight.Bold, fontColor = AccentGreen)
                         }
                     }
 

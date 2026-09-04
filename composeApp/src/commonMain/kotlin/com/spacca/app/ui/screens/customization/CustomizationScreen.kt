@@ -44,6 +44,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.spacca.app.util.formatPrice
+import com.spacca.app.util.formatWhole
 import com.spacca.app.data.CatalogRepository
 import com.spacca.app.data.model.DrinkSelection
 import com.spacca.app.data.model.DrinkSlot
@@ -165,7 +167,7 @@ fun CustomizationScreen(
             )
             Spacer(modifier = Modifier.height(4.dp))
             DefaultText(
-                text = "Base EGP ${"%.2f".format(price)}",
+                text = "Base EGP ${price.formatPrice()}",
                 fontSize = 13,
                 fontColor = MediumGrey
             )
@@ -264,7 +266,7 @@ fun CustomizationScreen(
                     modifier = Modifier.weight(0.8f)
                 )
                 DefaultButton(
-                    text = "Add to Cart  ·  EGP ${"%.2f".format(unitPrice * quantity)}",
+                    text = "Add to Cart  ·  EGP ${(unitPrice * quantity).formatPrice()}",
                     onClick = {
                         val selList = selections.values.toList()
                         onAdd(quantity, unitPrice, selList, buildSummary(visibleSlots, selList))
@@ -597,7 +599,7 @@ private fun extraCost(slot: DrinkSlot, selection: DrinkSelection?): Double {
 
 private fun volumeLabel(vol: DrinkSlotVolume): String {
     val cost = vol.extraCost ?: 0.0
-    return if (cost > 0) "${vol.volumeName ?: ""} +${"%.0f".format(cost)}" else (vol.volumeName ?: "")
+    return if (cost > 0) "${vol.volumeName ?: ""} +${cost.formatWhole()}" else (vol.volumeName ?: "")
 }
 
 // Two-column section: ingredient summary (left) + 3D cup simulator (right).

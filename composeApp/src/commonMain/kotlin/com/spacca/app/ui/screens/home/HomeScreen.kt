@@ -48,6 +48,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.spacca.app.util.formatPrice
 import com.spacca.app.data.ApiService
 import com.spacca.app.data.BranchStore
 import com.spacca.app.data.CatalogRepository
@@ -244,7 +245,7 @@ fun HomeScreen(
                                 id = fav.drinkId,
                                 name = fav.drink?.name,
                                 image = fav.drink?.imageUrl,
-                                price = fav.drink?.basePrice?.let { "%.2f".format(it) }
+                                price = fav.drink?.basePrice?.let { it.formatPrice() }
                             )
                         },
                         showPrice = true,

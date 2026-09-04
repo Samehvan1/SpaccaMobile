@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.spacca.app.util.formatPrice
 import com.spacca.app.data.ApiService
 import com.spacca.app.data.model.OrderSummary
 import com.spacca.app.ui.components.DefaultEmptyState
@@ -168,7 +169,7 @@ private fun OrderCard(order: OrderSummary, onClick: () -> Unit) {
         ) {
             DefaultText(text = order.createdAt ?: "", fontSize = 12, fontColor = LightGrey)
             DefaultText(
-                text = "EGP ${"%.2f".format(order.total ?: 0.0)}",
+                text = "EGP ${(order.total ?: 0.0).formatPrice()}",
                 fontSize = 14,
                 fontColor = AccentGreen,
                 fontWeight = FontWeight.SemiBold

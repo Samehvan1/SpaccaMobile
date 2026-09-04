@@ -23,7 +23,7 @@ actual suspend fun pickImage(): ByteArray? {
             val picker = PHPickerViewController(configuration = config)
             picker.delegate = IosPickerDelegate(cont)
 
-            rootVC.presentViewController(picker, animated = true, completion = null)
+            rootVC.presentViewController(picker, true, null)
         }
     }
 }

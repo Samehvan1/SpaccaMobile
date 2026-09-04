@@ -8,6 +8,7 @@ import platform.CoreLocation.CLLocation
 import platform.CoreLocation.CLLocationManager
 import platform.CoreLocation.CLLocationManagerDelegateProtocol
 import platform.CoreLocation.kCLAuthorizationStatusAuthorizedAlways
+import platform.Foundation.NSError
 import platform.CoreLocation.kCLAuthorizationStatusAuthorizedWhenInUse
 import platform.CoreLocation.kCLAuthorizationStatusDenied
 import platform.CoreLocation.kCLAuthorizationStatusNotDetermined
@@ -86,7 +87,9 @@ actual class LocationProvider {
                 }
             }
         }?.let { loc ->
-            Location(latitude = loc.coordinate.latitude, longitude = loc.coordinate.longitude)
+            val lat = loc.coordinate.useContents { latitude }
+            val lng = loc.coordinate.useContents { longitude }
+            Location(latitude = lat, longitude = lng)
         }
     }
 }

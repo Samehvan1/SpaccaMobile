@@ -5,6 +5,7 @@ import kotlinx.serialization.json.Json
 import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
+import com.spacca.app.util.currentTimeMillis
 
 /**
  * Simple file-based JSON cache with per-module TTL.
@@ -52,13 +53,13 @@ class CacheStore(
     }
 
     /** True when an entry exists and its age is within [ttlMillis]. */
-    fun isFresh(key: String, ttlMillis: Long, nowMillis: Long = System.currentTimeMillis()): Boolean {
+    fun isFresh(key: String, ttlMillis: Long, nowMillis: Long = currentTimeMillis()): Boolean {
         val last = lastUpdated(key) ?: return false
         return nowMillis - last <= ttlMillis
     }
 
     /** Writes [payloadJson] (a JSON string) for [key] with the current timestamp. */
-    fun put(key: String, payloadJson: String, nowMillis: Long = System.currentTimeMillis()) {
+    fun put(key: String, payloadJson: String, nowMillis: Long = currentTimeMillis()) {
         val file = file(key) ?: return
         try {
             fileSystem.createDirectories(file.parent!!)

@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.spacca.app.util.formatPrice
 import com.spacca.app.data.ApiService
 import com.spacca.app.data.model.SavedDrink
 import com.spacca.app.ui.components.DefaultEmptyState
@@ -182,7 +183,7 @@ private fun SavedDrinkCard(
                         modifier = Modifier.weight(1f)
                     )
                     DefaultText(
-                        text = if (price != null) "EGP ${"%.2f".format(price)}" else "",
+                        text = if (price != null) "EGP ${price.formatPrice()}" else "",
                         fontSize = 13,
                         fontColor = AccentGreen,
                         fontWeight = FontWeight.SemiBold

@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.spacca.app.util.formatPrice
 import com.spacca.app.data.CartStore
 import com.spacca.app.ui.components.DefaultButton
 import com.spacca.app.ui.components.DefaultEmptyState
@@ -101,7 +102,7 @@ fun CartScreen(
                             fontColor = Grey
                         )
                         DefaultText(
-                            text = "EGP ${"%.2f".format(item.unitPrice * item.quantity)}",
+                            text = "EGP ${(item.unitPrice * item.quantity).formatPrice()}",
                             fontSize = 14,
                             fontWeight = FontWeight.Medium,
                             fontColor = AccentGreen,

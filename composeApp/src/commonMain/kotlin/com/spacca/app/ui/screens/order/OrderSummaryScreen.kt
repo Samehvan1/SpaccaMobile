@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.spacca.app.util.formatPrice
 import com.spacca.app.data.ApiService
 import com.spacca.app.data.CartStore
 import com.spacca.app.data.model.Discount
@@ -160,7 +161,7 @@ fun OrderSummaryScreen(
                             modifier = Modifier.weight(1f)
                         )
                         DefaultText(
-                            text = "EGP ${"%.2f".format(item.unitPrice * item.quantity)}",
+                            text = "EGP ${(item.unitPrice * item.quantity).formatPrice()}",
                             fontSize = 14,
                             fontColor = LightGrey
                         )
@@ -239,11 +240,11 @@ fun OrderSummaryScreen(
                     .background(DarkBorder)
                     .padding(14.dp)
             ) {
-                SummaryRow(label = "Subtotal", value = "EGP ${"%.2f".format(subtotal)}")
+                SummaryRow(label = "Subtotal", value = "EGP ${subtotal.formatPrice()}")
                 Spacer(modifier = Modifier.height(8.dp))
-                SummaryRow(label = "Taxes (14%)", value = "EGP ${"%.2f".format(taxes)}")
+                SummaryRow(label = "Taxes (14%)", value = "EGP ${taxes.formatPrice()}")
                 Spacer(modifier = Modifier.height(8.dp))
-                SummaryRow(label = "Discount", value = "- EGP ${"%.2f".format(discountAmount)}", valueColor = AccentGreen)
+                SummaryRow(label = "Discount", value = "- EGP ${discountAmount.formatPrice()}", valueColor = AccentGreen)
 
                 Spacer(modifier = Modifier.height(10.dp))
 
@@ -261,7 +262,7 @@ fun OrderSummaryScreen(
                         fontWeight = FontWeight.Bold
                     )
                     DefaultText(
-                        text = "EGP ${"%.2f".format(total)}",
+                        text = "EGP ${total.formatPrice()}",
                         fontSize = 16,
                         fontWeight = FontWeight.Bold,
                         fontColor = AccentGreen,
@@ -293,8 +294,8 @@ private fun discountLabel(d: Discount): String {
     val v = d.value ?: 0.0
     return when (d.type) {
         "percentage" -> "${v.toInt()}% off"
-        "fixed" -> "EGP ${"%.2f".format(v)} off"
-        "fixed_per_item" -> "EGP ${"%.2f".format(v)} per item"
+        "fixed" -> "EGP ${v.formatPrice()} off"
+        "fixed_per_item" -> "EGP ${v.formatPrice()} per item"
         else -> d.code ?: ""
     }
 }

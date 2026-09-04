@@ -30,6 +30,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.spacca.app.util.formatPrice
 import com.spacca.app.data.ApiService
 import com.spacca.app.data.model.SavedDrink
 import com.spacca.app.ui.components.DefaultButton
@@ -141,7 +142,7 @@ fun SavedCustomizedProductsScreen(
                                 fontWeight = FontWeight.SemiBold
                             )
                             DefaultText(
-                                text = "EGP ${"%.2f".format(drink.drink?.basePrice ?: 0.0)}",
+                                text = "EGP ${(drink.drink?.basePrice ?: 0.0).formatPrice()}",
                                 fontSize = 12,
                                 fontColor = AccentGreen,
                                 fontWeight = FontWeight.SemiBold

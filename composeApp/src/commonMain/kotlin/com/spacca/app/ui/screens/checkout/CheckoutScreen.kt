@@ -54,6 +54,8 @@ import com.spacca.app.ui.theme.LightGrey
 import com.spacca.app.ui.theme.MediumGrey
 import com.spacca.app.ui.theme.Red
 import com.spacca.app.ui.theme.White
+import com.spacca.app.util.formatTime
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -261,7 +263,7 @@ fun CheckoutScreen(
                 TimePicker(state = timePickerState)
                 Spacer(modifier = Modifier.height(8.dp))
                 DefaultText(
-                    text = "Selected: ${"%02d:%02d".format(timePickerState.hour, timePickerState.minute)}",
+                    text = "Selected: ${formatTime(timePickerState.hour, timePickerState.minute)}",
                     fontSize = 14,
                     fontColor = AccentGreen,
                     fontWeight = FontWeight.Medium
@@ -342,17 +344,22 @@ fun CheckoutScreen(
 
                     // Validate scheduled time is in the future (within 24h window).
                     if (selectedTimeOption == 1) {
-                        val now = java.time.LocalDateTime.now()
-                        val picked = now
-                            .withHour(timePickerState.hour)
-                            .withMinute(timePickerState.minute)
-                            .withSecond(0)
-                            .withNano(0)
-                        if (!picked.isAfter(now)) {
+                        val now = kotlinx.datetime.Clock.System.now()
+                            .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+                        val picked = kotlinx.datetime.LocalDateTime(
+                            year = now.year,
+                            monthNumber = now.monthNumber,
+                            dayOfMonth = now.dayOfMonth,
+                            hour = timePickerState.hour,
+                            minute = timePickerState.minute,
+                            second = 0,
+                            nanosecond = 0
+                        )
+                        if (!(picked > now)) {
                             timeError = "Please pick a future time"
                             return@DefaultButton
                         }
-                        scheduledTime = "%02d:%02d".format(timePickerState.hour, timePickerState.minute)
+                        scheduledTime = formatTime(timePickerState.hour, timePickerState.minute)
                     } else {
                         scheduledTime = null
                     }

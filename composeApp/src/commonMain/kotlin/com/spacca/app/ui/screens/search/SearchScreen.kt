@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.spacca.app.util.formatPrice
 import com.spacca.app.data.CatalogRepository
 import com.spacca.app.data.model.CategoryProduct
 import com.spacca.app.ui.components.DefaultEmptyState
@@ -146,7 +147,7 @@ private fun SearchResultRow(drink: SearchResult, onClick: () -> Unit) {
             fontWeight = FontWeight.Medium
         )
         DefaultText(
-            text = drink.product.price?.let { "%.2f EGP".format(it) } ?: "",
+            text = drink.product.price?.let { "${it.formatPrice()} EGP" } ?: "",
             fontSize = 13,
             fontColor = AccentGreen,
             fontWeight = FontWeight.SemiBold
