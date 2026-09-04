@@ -13,6 +13,7 @@ import platform.PhotosUI.PHPickerResult
 import platform.PhotosUI.PHPickerViewController
 import platform.PhotosUI.PHPickerViewControllerDelegateProtocol
 import platform.darwin.NSObject
+import platform.posix.memcpy
 import kotlin.coroutines.resume
 
 @OptIn(ExperimentalForeignApi::class)
@@ -48,7 +49,7 @@ private class IosPickerDelegate(
                 if (data != null) {
                     val bytes = ByteArray(data.length.toInt())
                     bytes.usePinned { pinned ->
-                        data.getBytes(pinned.addressOf(0))
+                        memcpy(pinned.addressOf(0), data.bytes, data.length)
                     }
                     cont.resume(bytes)
                 } else {
