@@ -2,94 +2,64 @@ package com.spacca.app.data.location
 
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.useContents
-import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
-import platform.CoreLocation.CLAuthorizationStatus
 import platform.CoreLocation.CLLocation
 import platform.CoreLocation.CLLocationManager
-import platform.CoreLocation.CLLocationManagerDelegateProtocol
 import platform.CoreLocation.kCLAuthorizationStatusAuthorizedAlways
-import platform.Foundation.NSError
 import platform.CoreLocation.kCLAuthorizationStatusAuthorizedWhenInUse
 import platform.CoreLocation.kCLAuthorizationStatusDenied
 import platform.CoreLocation.kCLAuthorizationStatusNotDetermined
 import platform.CoreLocation.kCLAuthorizationStatusRestricted
-import platform.darwin.NSObject
-import kotlin.coroutines.resume
 
+/**
+ * iOS implementation of [LocationProvider].
+ *
+ * Uses a polling approach on [CLLocationManager.location] instead of overriding
+ * the CLLocationManagerDelegate location-update callbacks. The delegate method
+ * names exposed by the Kotlin/Native platform libraries vary between SDK/Xcode
+ * versions (didUpdateLocations vs the deprecated didUpdateToLocation), which
+ * makes overriding them fragile across CI runners. Polling the manager's
+ * `location` property avoids that dependency entirely.
+ */
 @OptIn(ExperimentalForeignApi::class)
 actual class LocationProvider {
 
     @OptIn(ExperimentalForeignApi::class)
-    private class Delegate(
-        private val onResult: (CLLocation?) -> Unit
-    ) : NSObject(), CLLocationManagerDelegateProtocol {
-
-        private var manager: CLLocationManager? = null
-
-        fun attach(mgr: CLLocationManager) {
-            manager = mgr
-        }
-
-        override fun locationManager(
-            manager: CLLocationManager,
-            didUpdateLocations: List<*>
-        ) {
-            val loc = didUpdateLocations.lastOrNull() as? CLLocation
-            if (loc != null) {
-                manager.stopUpdatingLocation()
-                onResult(loc)
-            }
-        }
-
-        override fun locationManager(
-            manager: CLLocationManager,
-            didFailWithError: NSError?
-        ) {
-            manager.stopUpdatingLocation()
-            onResult(null)
-        }
-
-        override fun locationManagerDidChangeAuthorization(manager: CLLocationManager) {
-            val status = manager.authorizationStatus()
-            if (status == kCLAuthorizationStatusDenied ||
-                status == kCLAuthorizationStatusRestricted
-            ) {
-                manager.stopUpdatingLocation()
-                onResult(null)
-            } else if (status == kCLAuthorizationStatusAuthorizedWhenInUse ||
-                status == kCLAuthorizationStatusAuthorizedAlways
-            ) {
-                manager.startUpdatingLocation()
-            }
-        }
-    }
-
-    @OptIn(ExperimentalForeignApi::class)
     actual suspend fun getCurrentLocation(): Location? {
         val manager = CLLocationManager()
-        return withTimeoutOrNull(10_000) {
-            suspendCancellableCoroutine { cont ->
-                val delegate = Delegate { loc ->
-                    if (cont.isActive) cont.resume(loc)
-                }
-                delegate.attach(manager)
-                manager.delegate = delegate
 
-                val status = manager.authorizationStatus()
-                if (status == kCLAuthorizationStatusNotDetermined) {
-                    manager.requestWhenInUseAuthorization()
-                } else if (status == kCLAuthorizationStatusAuthorizedWhenInUse ||
-                    status == kCLAuthorizationStatusAuthorizedAlways
-                ) {
-                    manager.startUpdatingLocation()
-                } else {
-                    if (cont.isActive) cont.resume(null)
+        // Request authorization if not yet determined, waiting for the user's choice.
+        val status = manager.authorizationStatus()
+        if (status == kCLAuthorizationStatusNotDetermined) {
+            manager.requestWhenInUseAuthorization()
+            withTimeoutOrNull(10_000) {
+                while (manager.authorizationStatus() == kCLAuthorizationStatusNotDetermined) {
+                    delay(100)
                 }
             }
-        }?.let { loc ->
-            val lat = loc.coordinate.useContents { latitude }
-            val lng = loc.coordinate.useContents { longitude }
+        }
+
+        val finalStatus = manager.authorizationStatus()
+        if (finalStatus != kCLAuthorizationStatusAuthorizedWhenInUse &&
+            finalStatus != kCLAuthorizationStatusAuthorizedAlways
+        ) {
+            return null
+        }
+
+        // Start updating and poll for a location fix.
+        manager.startUpdatingLocation()
+        val loc = withTimeoutOrNull(10_000) {
+            while (manager.location == null) {
+                delay(100)
+            }
+            manager.location
+        }
+        manager.stopUpdatingLocation()
+
+        return loc?.let { l ->
+            val lat = l.coordinate.useContents { latitude }
+            val lng = l.coordinate.useContents { longitude }
             Location(latitude = lat, longitude = lng)
         }
     }

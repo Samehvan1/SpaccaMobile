@@ -1,5 +1,6 @@
 package com.spacca.app.data
 
+import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.Dispatchers
@@ -14,6 +15,7 @@ import platform.PhotosUI.PHPickerViewControllerDelegateProtocol
 import platform.darwin.NSObject
 import kotlin.coroutines.resume
 
+@OptIn(ExperimentalForeignApi::class)
 actual suspend fun pickImage(): ByteArray? {
     val rootVC = PlatformContextHolder.rootViewController ?: return null
     return withContext(Dispatchers.Main) {
@@ -30,6 +32,7 @@ actual suspend fun pickImage(): ByteArray? {
     }
 }
 
+@OptIn(ExperimentalForeignApi::class)
 private class IosPickerDelegate(
     private val cont: kotlinx.coroutines.CancellableContinuation<ByteArray?>
 ) : NSObject(), PHPickerViewControllerDelegateProtocol {
