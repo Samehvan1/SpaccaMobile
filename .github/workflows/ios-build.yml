@@ -70,6 +70,9 @@ jobs:
         working-directory: iosApp
         run: xcodegen generate
 
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
       - name: Build iOS app with xcodebuild
         working-directory: iosApp
         run: |
