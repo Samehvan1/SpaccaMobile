@@ -12,8 +12,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,11 +28,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.spacca.app.data.ApiService
+import com.spacca.app.data.pickImage
 import com.spacca.app.data.model.UpdateProfileRequest
 import com.spacca.app.ui.components.DefaultButton
 import com.spacca.app.ui.components.DefaultText
 import com.spacca.app.ui.components.DefaultTextField
 import com.spacca.app.ui.components.DefaultTopBar
+import com.spacca.app.ui.components.SpaccaImage
 import com.spacca.app.ui.theme.AccentGreen
 import com.spacca.app.ui.theme.BackgroundPrimary
 import com.spacca.app.ui.theme.DarkBorder
@@ -52,11 +58,13 @@ fun EditProfileScreen(
     var gender by remember { mutableStateOf("") }
     var city by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
+    var avatarUrl by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(true) }
     var saving by remember { mutableStateOf(false) }
+    var uploading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    scope.launch {
+    LaunchedEffect(Unit) {
         loading = true
         try {
             val me = api.me()
@@ -67,6 +75,7 @@ fun EditProfileScreen(
                 gender = me.gender ?: ""
                 city = me.city ?: ""
                 address = me.address ?: ""
+                avatarUrl = me.avatarUrl
             }
         } catch (e: Exception) {
             error = e.message ?: "Could not load profile"
@@ -91,6 +100,56 @@ fun EditProfileScreen(
             if (error != null) {
                 DefaultText(text = error ?: "", fontSize = 12, fontColor = Red)
                 Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // Avatar section
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(CircleShape)
+                        .background(DarkBorder)
+                        .clickable {
+                            if (!uploading) {
+                                scope.launch {
+                                    val imageBytes = pickImage()
+                                    if (imageBytes != null) {
+                                        uploading = true
+                                        error = null
+                                        try {
+                                            val updated = api.uploadAvatar(imageBytes)
+                                            if (updated != null) {
+                                                avatarUrl = updated.avatarUrl
+                                            }
+                                        } catch (e: Exception) {
+                                            error = e.message ?: "Could not upload photo"
+                                        } finally {
+                                            uploading = false
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (uploading) {
+                        DefaultText(text = "Uploading...", fontSize = 10, fontColor = LightGrey)
+                    } else if (avatarUrl != null) {
+                        SpaccaImage(
+                            imageUrl = avatarUrl,
+                            contentDescription = "Profile photo",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.size(80.dp)
+                        )
+                    } else {
+                        DefaultText(text = "Add Photo", fontSize = 12, fontColor = LightGrey)
+                    }
+                }
             }
 
             DefaultText(text = "Name", fontSize = 12, fontColor = LightGrey)
@@ -166,6 +225,7 @@ fun EditProfileScreen(
                                     email = email.ifBlank { null },
                                     birthdate = birthdate.ifBlank { null },
                                     gender = gender.ifBlank { null },
+                                    avatarUrl = avatarUrl?.ifBlank { null },
                                     city = city.ifBlank { null },
                                     address = address.ifBlank { null }
                                 )

@@ -24,6 +24,7 @@ import com.spacca.app.ui.components.DefaultButton
 import com.spacca.app.ui.components.DefaultTextField
 import com.spacca.app.ui.components.DefaultTopBar
 import com.spacca.app.ui.components.DefaultText
+import com.spacca.app.ui.components.clickableNoRipple
 import com.spacca.app.ui.theme.AccentGreen
 import com.spacca.app.ui.theme.BackgroundPrimary
 import com.spacca.app.ui.theme.LightGrey
@@ -33,7 +34,9 @@ import org.koin.compose.koinInject
 @Composable
 fun LoginScreen(
     onBack: () -> Unit,
-    onOtpSent: (String) -> Unit
+    onOtpSent: (String) -> Unit,
+    onPinLogin: (String) -> Unit,
+    onRegister: (String) -> Unit
 ) {
     val api = koinInject<ApiService>()
     val scope = rememberCoroutineScope()
@@ -89,8 +92,13 @@ fun LoginScreen(
                         loading = true
                         error = null
                         try {
-                            api.requestOtp(phone)
-                            onOtpSent(phone)
+                            val resp = api.requestOtp(phone)
+                            // Registered users (hasPin) go straight to phone + PIN — no OTP.
+                            if (resp.hasPin == true) {
+                                onPinLogin(phone)
+                            } else {
+                                onOtpSent(phone)
+                            }
                         } catch (e: Exception) {
                             error = e.message ?: "Something went wrong"
                         } finally {
@@ -99,6 +107,14 @@ fun LoginScreen(
                     }
                 },
                 enabled = phone.isNotBlank() && !loading
+            )
+            Spacer(Modifier.height(16.dp))
+            DefaultText(
+                text = "New to SPACCA? Create account",
+                fontSize = 14,
+                fontColor = AccentGreen,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.clickableNoRipple { onRegister(phone) }
             )
         }
     }

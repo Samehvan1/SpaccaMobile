@@ -39,7 +39,8 @@ import org.koin.compose.koinInject
 @Composable
 fun CartScreen(
     onCheckout: () -> Unit = {},
-    onStartShopping: () -> Unit = {}
+    onStartShopping: () -> Unit = {},
+    onContinueShopping: () -> Unit = {}
 ) {
     val cartStore = koinInject<CartStore>()
     val items by cartStore.lines.collectAsState()
@@ -118,6 +119,8 @@ fun CartScreen(
                 }
             }
             Spacer(Modifier.height(16.dp))
+            DefaultButton(text = "Continue shopping", onClick = onContinueShopping)
+            Spacer(Modifier.height(8.dp))
             DefaultButton(text = "Checkout", onClick = onCheckout)
         }
     }

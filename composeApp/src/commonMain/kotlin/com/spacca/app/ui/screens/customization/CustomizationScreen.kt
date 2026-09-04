@@ -1,7 +1,13 @@
 package com.spacca.app.ui.screens.customization
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +30,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -33,6 +40,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.spacca.app.data.CatalogRepository
@@ -41,10 +50,14 @@ import com.spacca.app.data.model.DrinkSlot
 import com.spacca.app.data.model.DrinkSlotOption
 import com.spacca.app.data.model.DrinkSlotTypeOption
 import com.spacca.app.data.model.DrinkSlotVolume
+import com.spacca.app.ui.components.CupSimulator
 import com.spacca.app.ui.components.DefaultButton
 import com.spacca.app.ui.components.ButtonVariant
 import com.spacca.app.ui.components.DefaultText
 import com.spacca.app.ui.components.DefaultTopBar
+import com.spacca.app.ui.components.IngredientSummary
+import com.spacca.app.ui.components.SpaccaImage
+import com.spacca.app.ui.components.buildCupLayers
 import com.spacca.app.ui.components.clickableNoRipple
 import com.spacca.app.ui.theme.AccentGreen
 import com.spacca.app.ui.theme.BackgroundPrimary
@@ -70,6 +83,8 @@ fun CustomizationScreen(
     val scope = rememberCoroutineScope()
 
     var slots by remember { mutableStateOf<List<DrinkSlot>>(emptyList()) }
+    var cupSizeMl by remember { mutableStateOf<Int?>(null) }
+    var productImage by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(true) }
     var loadError by remember { mutableStateOf(false) }
     var quantity by remember { mutableStateOf(initialQty.coerceAtLeast(1)) }
@@ -84,6 +99,8 @@ fun CustomizationScreen(
                 val detail = catalog.drinkDetail(drinkId)
                 val recipe = detail.slots
                 slots = recipe
+                cupSizeMl = detail.drink?.cupSizeMl
+                productImage = detail.drink?.imageUrl
                 // Initialize defaults for each slot
                 recipe.forEach { slot ->
                     val def = defaultSelection(slot)
@@ -137,18 +154,10 @@ fun CustomizationScreen(
             return@Column
         }
 
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-        ) {
+        // Fixed header: drink name + price + CupSimulatorSection
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 88.dp)
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp)
         ) {
-            // Drink name + base price
             DefaultText(
                 text = name,
                 fontSize = 20,
@@ -163,6 +172,50 @@ fun CustomizationScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
+            if (cupSizeMl != null) {
+                // It's a drink (has a cup size) -> show the cup simulator.
+                if (visibleSlots.isNotEmpty()) {
+                    CupSimulatorSection(
+                        slots = visibleSlots,
+                        selections = selections,
+                        cupSizeMl = cupSizeMl
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+                }
+            } else {
+                // No cup size -> it's dessert/bakery/etc., not a drink.
+                // Show the product image instead of the cup simulator.
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(BackgroundSecondary)
+                        .border(
+                            width = 1.dp,
+                            color = DarkBorder,
+                            shape = RoundedCornerShape(12.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    SpaccaImage(
+                        imageUrl = productImage,
+                        contentDescription = name,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.size(160.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(20.dp))
+            }
+        }
+
+        // Scrollable area: slot sections + quantity
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 24.dp)
+        ) {
             if (visibleSlots.isEmpty()) {
                 DefaultText(
                     text = "No customization options available for this drink.",
@@ -183,7 +236,6 @@ fun CustomizationScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Quantity stepper
             QuantitySection(
                 quantity = quantity,
                 onDecrease = { if (quantity > 1) quantity-- },
@@ -193,10 +245,9 @@ fun CustomizationScreen(
             Spacer(modifier = Modifier.height(24.dp))
         }
 
-        // Pinned bottom action bar
+        // Fixed bottom action bar
         Column(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .background(BackgroundPrimary)
@@ -210,7 +261,7 @@ fun CustomizationScreen(
                     text = "Cancel",
                     onClick = onBack,
                     variant = ButtonVariant.SECONDARY,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(0.8f)
                 )
                 DefaultButton(
                     text = "Add to Cart  ·  EGP ${"%.2f".format(unitPrice * quantity)}",
@@ -218,10 +269,10 @@ fun CustomizationScreen(
                         val selList = selections.values.toList()
                         onAdd(quantity, unitPrice, selList, buildSummary(visibleSlots, selList))
                     },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1.2f),
+                    fontSize = 14
                 )
             }
-        }
         }
     }
 }
@@ -245,7 +296,7 @@ private fun QuantitySection(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(DarkBorder)
+                    .background(if (quantity > 1) DarkBorder else DarkBorder.copy(alpha = 0.4f))
                     .clickableNoRipple(enabled = quantity > 1) { onDecrease() },
                 contentAlignment = Alignment.Center
             ) {
@@ -419,8 +470,34 @@ private fun ChoiceChip(
     selected: Boolean,
     onClick: () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val scale = remember { Animatable(1f) }
+
+    LaunchedEffect(interactionSource) {
+        interactionSource.interactions.collect { interaction ->
+            when (interaction) {
+                is PressInteraction.Press -> {
+                    scale.animateTo(
+                        targetValue = 0.93f,
+                        animationSpec = tween(80, easing = FastOutSlowInEasing)
+                    )
+                }
+                is PressInteraction.Release, is PressInteraction.Cancel -> {
+                    scale.animateTo(
+                        targetValue = 1f,
+                        animationSpec = tween(200, easing = FastOutSlowInEasing)
+                    )
+                }
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
+            .graphicsLayer {
+                scaleX = scale.value
+                scaleY = scale.value
+            }
             .clip(RoundedCornerShape(8.dp))
             .background(if (selected) AccentGreen else BackgroundPrimary)
             .border(
@@ -428,7 +505,11 @@ private fun ChoiceChip(
                 color = if (selected) AccentGreen else DarkBorder,
                 shape = RoundedCornerShape(8.dp)
             )
-            .clickableNoRipple(onClick = onClick)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
             .padding(horizontal = 14.dp, vertical = 10.dp)
     ) {
         DefaultText(
@@ -517,4 +598,45 @@ private fun extraCost(slot: DrinkSlot, selection: DrinkSelection?): Double {
 private fun volumeLabel(vol: DrinkSlotVolume): String {
     val cost = vol.extraCost ?: 0.0
     return if (cost > 0) "${vol.volumeName ?: ""} +${"%.0f".format(cost)}" else (vol.volumeName ?: "")
+}
+
+// Two-column section: ingredient summary (left) + 3D cup simulator (right).
+@Composable
+private fun CupSimulatorSection(
+    slots: List<DrinkSlot>,
+    selections: Map<Int, DrinkSelection>,
+    cupSizeMl: Int? = null
+) {
+    val layers = buildCupLayers(slots, selections, cupSizeMl)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(BackgroundSecondary)
+            .border(
+                width = 1.dp,
+                color = DarkBorder,
+                shape = RoundedCornerShape(12.dp)
+            )
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            IngredientSummary(
+                slots = slots,
+                selections = selections,
+                modifier = Modifier.weight(0.35f)
+            )
+            CupSimulator(
+                layers = layers,
+                cupSizeMl = cupSizeMl,
+                modifier = Modifier
+                    .weight(0.65f)
+                    .height(200.dp)
+            )
+        }
+    }
 }

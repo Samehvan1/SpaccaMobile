@@ -16,8 +16,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
@@ -49,7 +52,10 @@ private val moreItems = listOf(
     MoreItem("My Profile", Icons.Filled.Person),
     MoreItem("My Orders", Icons.AutoMirrored.Filled.ReceiptLong),
     MoreItem("My Points", Icons.Filled.Star),
-    MoreItem("My Favorites", Icons.Filled.Favorite)
+    MoreItem("My Favorites", Icons.Filled.Favorite),
+    MoreItem("My Customized Drinks", Icons.Filled.Bookmark),
+    MoreItem("Terms & Conditions", Icons.Filled.Description),
+    MoreItem("Privacy Policy", Icons.Filled.PrivacyTip)
 )
 
 @Composable
@@ -57,13 +63,19 @@ fun MoreScreen(
     onProfile: () -> Unit = {},
     onOrders: () -> Unit = {},
     onPoints: () -> Unit = {},
-    onFavorites: () -> Unit = {}
+    onFavorites: () -> Unit = {},
+    onSavedCustomizedProducts: () -> Unit = {},
+    onTerms: () -> Unit = {},
+    onPrivacy: () -> Unit = {}
 ) {
     val actions = mapOf(
         "My Profile" to onProfile,
         "My Orders" to onOrders,
         "My Points" to onPoints,
-        "My Favorites" to onFavorites
+        "My Favorites" to onFavorites,
+        "My Customized Drinks" to onSavedCustomizedProducts,
+        "Terms & Conditions" to onTerms,
+        "Privacy Policy" to onPrivacy
     )
 
     // Re-capture the current location whenever the More/menu tab is opened.

@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,7 +47,8 @@ import org.koin.compose.koinInject
 
 @Composable
 fun FavoritesScreen(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onDrinkClick: (Favorite) -> Unit
 ) {
     val api = koinInject<ApiService>()
     val scope = rememberCoroutineScope()
@@ -68,7 +70,9 @@ fun FavoritesScreen(
         }
     }
 
-    load()
+LaunchedEffect(Unit) {
+        load()
+    }
 
     Column(
         modifier = Modifier
@@ -119,6 +123,7 @@ fun FavoritesScreen(
                             name = fav.drink?.name ?: "Drink",
                             price = fav.drink?.basePrice,
                             imageUrl = fav.drink?.imageUrl,
+                            onClick = { onDrinkClick(fav) },
                             onRemove = {
                                 scope.launch {
                                     try {
@@ -142,12 +147,14 @@ private fun FavoriteCard(
     name: String,
     price: Double?,
     imageUrl: String?,
+    onClick: () -> Unit,
     onRemove: () -> Unit
 ) {
     Column(
         modifier = Modifier
             .clip(RoundedCornerShape(10.dp))
             .background(DarkBorder)
+            .clickableNoRipple(onClick = onClick)
             .padding(14.dp)
     ) {
         Box(

@@ -1,19 +1,27 @@
 package com.spacca.app.data
 
+import com.spacca.app.data.cache.PersistentCookiesStorage
 import com.spacca.app.data.model.*
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.cookies.cookies
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.patch
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.Headers
+import io.ktor.http.HttpHeaders
+import io.ktor.client.request.forms.MultiPartFormDataContent
+import io.ktor.client.request.forms.formData
 
 // The backend authenticates via session cookies (req.session.customerId).
 // Ktor's HttpCookies plugin stores and sends the session cookie automatically,
 // so no manual Authorization header is required.
 class ApiService(
-    private val client: HttpClient
+    private val client: HttpClient,
+    private val cookieStorage: PersistentCookiesStorage
 ) {
     // ---- Auth ----
     suspend fun requestOtp(phone: String): OtpResponse =
@@ -32,12 +40,32 @@ class ApiService(
         client.post("/api/mobile/auth/logout")
     }
 
+    /** Clears the local cookie jar (used on logout / session expiry). */
+    fun clearCookies() {
+        cookieStorage.clear()
+    }
+
     suspend fun me(): MobileCustomer? =
-        client.get("/api/mobile/me").body<CustomerResponse>().customer
+        client.get("/api/mobile/auth/me").body<CustomerResponse>().customer
 
     // ---- Profile ----
     suspend fun updateProfile(body: UpdateProfileRequest): MobileCustomer? =
         client.patch("/api/mobile/me") { setBody(body) }.body<CustomerResponse>().customer
+
+    /** Uploads an avatar image via multipart POST and returns the updated customer. */
+    suspend fun uploadAvatar(imageBytes: ByteArray, fileName: String = "avatar.jpg"): MobileCustomer? =
+        client.post("/api/mobile/me/avatar") {
+            setBody(
+                MultiPartFormDataContent(
+                    formData {
+                        append("avatar", imageBytes, Headers.build {
+                            append(HttpHeaders.ContentType, "image/jpeg")
+                            append(HttpHeaders.ContentDisposition, "filename=$fileName")
+                        })
+                    }
+                )
+            )
+        }.body<CustomerResponse>().customer
 
     suspend fun changePhone(body: ChangePhoneRequest): MessageResponse =
         client.post("/api/mobile/me/change-phone") { setBody(body) }.body()
@@ -54,6 +82,17 @@ class ApiService(
     // ---- Points ----
     suspend fun points(): PointsResponse =
         client.get("/api/mobile/points").body()
+
+    // ---- Discounts & Offers ----
+    suspend fun availableDiscounts(): List<Discount> =
+        client.get("/api/mobile/discounts").body<DiscountsResponse>().discounts
+
+    suspend fun offers(branchId: Int? = null): List<Offer> =
+        client.get("/api/mobile/offers") { if (branchId != null) url { parameters.append("branchId", branchId.toString()) } }
+            .body()
+
+    suspend fun validateDiscount(code: String): ValidateDiscountResponse =
+        client.get("/api/mobile/discounts/validate/$code").body()
 
     // ---- Branches ----
     suspend fun branches(): List<Branch> =

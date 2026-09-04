@@ -14,7 +14,8 @@ data class OtpResponse(
     @SerialName("success") val success: Boolean? = null,
     @SerialName("message") val message: String? = null,
     @SerialName("devOtp") val devOtp: String? = null,
-    @SerialName("expiresIn") val expiresIn: Int? = null
+    @SerialName("expiresIn") val expiresIn: Int? = null,
+    @SerialName("hasPin") val hasPin: Boolean? = null
 )
 
 @Serializable
@@ -71,6 +72,7 @@ data class MobileCustomer(
     @SerialName("city") val city: String? = null,
     @SerialName("loyaltyTier") val loyaltyTier: String? = null,
     @SerialName("points") val points: Int? = null,
+    @SerialName("discountId") val discountId: Int? = null,
     @SerialName("createdAt") val createdAt: String? = null
 )
 
@@ -224,7 +226,8 @@ data class DrinkDetail(
     @SerialName("categoryId") val categoryId: Int? = null,
     @SerialName("imageUrl") val imageUrl: String? = null,
     @SerialName("isCustomizable") val isCustomizable: Boolean? = null,
-    @SerialName("price") val price: Double? = null
+    @SerialName("price") val price: Double? = null,
+    @SerialName("cupSizeMl") val cupSizeMl: Int? = null
 )
 
 @Serializable
@@ -241,7 +244,8 @@ data class DrinkSlotVolume(
     @SerialName("volumeName") val volumeName: String? = null,
     @SerialName("extraCost") val extraCost: Double? = null,
     @SerialName("isDefault") val isDefault: Boolean? = null,
-    @SerialName("isAvailable") val isAvailable: Boolean? = null
+    @SerialName("isAvailable") val isAvailable: Boolean? = null,
+    @SerialName("processedQty") val processedQty: Float? = null
 )
 
 @Serializable
@@ -251,6 +255,7 @@ data class DrinkSlotTypeOption(
     @SerialName("typeName") val typeName: String? = null,
     @SerialName("extraCost") val extraCost: Double? = null,
     @SerialName("isDefault") val isDefault: Boolean? = null,
+    @SerialName("processedQty") val processedQty: Float? = null,
     @SerialName("volumes") val volumes: List<DrinkSlotVolume> = emptyList()
 )
 
@@ -260,7 +265,8 @@ data class DrinkSlotOption(
     @SerialName("label") val label: String? = null,
     @SerialName("extraCost") val extraCost: Double? = null,
     @SerialName("isDefault") val isDefault: Boolean? = null,
-    @SerialName("isAvailable") val isAvailable: Boolean? = null
+    @SerialName("isAvailable") val isAvailable: Boolean? = null,
+    @SerialName("processedQty") val processedQty: Float? = null
 )
 
 @Serializable
@@ -469,6 +475,41 @@ data class PointsResponse(
     @SerialName("points") val points: Int? = null,
     @SerialName("totalSpent") val totalSpent: String? = null,
     @SerialName("visitCount") val visitCount: Int? = null
+)
+
+// ---- Discounts & Offers ----
+@Serializable
+data class Discount(
+    @SerialName("id") val id: Int,
+    @SerialName("code") val code: String? = null,
+    @SerialName("type") val type: String? = null,
+    @SerialName("value") val value: Double? = null,
+    @SerialName("isTaxable") val isTaxable: Boolean? = null,
+    @SerialName("reason") val reason: String? = null
+)
+
+@Serializable
+data class DiscountsResponse(
+    @SerialName("discounts") val discounts: List<Discount> = emptyList()
+)
+
+@Serializable
+data class Offer(
+    @SerialName("id") val id: Int,
+    @SerialName("name") val name: String? = null,
+    @SerialName("buyAmount") val buyAmount: Int? = null,
+    @SerialName("freeAmount") val freeAmount: Int? = null,
+    @SerialName("promoLabel") val promoLabel: String? = null,
+    @SerialName("applicableDrinkIds") val applicableDrinkIds: List<Int> = emptyList(),
+    @SerialName("rewardDrinkIds") val rewardDrinkIds: List<Int> = emptyList(),
+    @SerialName("excludedDrinkIds") val excludedDrinkIds: List<Int> = emptyList()
+)
+
+@Serializable
+data class ValidateDiscountResponse(
+    @SerialName("valid") val valid: Boolean = false,
+    @SerialName("discount") val discount: Discount? = null,
+    @SerialName("error") val error: String? = null
 )
 
 // ---- Generic ----

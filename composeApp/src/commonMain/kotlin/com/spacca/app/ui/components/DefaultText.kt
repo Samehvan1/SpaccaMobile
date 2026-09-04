@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import com.spacca.app.ui.theme.White
 
@@ -21,7 +22,8 @@ fun DefaultText(
     fontWeight: FontWeight = FontWeight.Normal,
     textAlign: TextAlign = TextAlign.Start,
     style: TextStyle? = null,
-    maxLines: Int = Int.MAX_VALUE
+    maxLines: Int = Int.MAX_VALUE,
+    overflow: TextOverflow = TextOverflow.Clip
 ) {
     Text(
         text = text,
@@ -32,6 +34,7 @@ fun DefaultText(
         fontWeight = fontWeight,
         textAlign = textAlign,
         style = style ?: TextStyle.Default,
-        maxLines = maxLines
+        maxLines = maxLines,
+        overflow = overflow
     )
 }

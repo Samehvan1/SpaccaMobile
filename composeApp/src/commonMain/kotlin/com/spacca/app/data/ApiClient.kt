@@ -4,6 +4,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.cookies.CookiesStorage
 import io.ktor.client.plugins.cookies.HttpCookies
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.http.ContentType
@@ -16,21 +17,19 @@ object ApiConfig {
     //
     // NOTE: 10.0.2.2 is the Android *emulator's* alias for the host machine.
     // On a physical device this does NOT route to the dev machine, so set this
-    // to the dev machine's LAN IP (e.g. http://192.168.x.x:3000/api) instead.
+    // to the dev machine's LAN IP (e.g. http://192.168.x.x:8080) instead.
     // This is a `var` so it can be overridden at runtime for device testing.
     //
-    // For a USB-connected physical device, use adb reverse so the device's
-    // localhost:8080 forwards to the host's backend:
-    //   adb reverse tcp:8080 tcp:8080
-    // then point BASE_URL at 127.0.0.1:8080.
+    // The device and PC must be on the same Wi-Fi network. If the PC's IP
+    // changes, update this value and rebuild (see README / build instructions).
     //
     // NOTE: Ktor's defaultRequest resolves request paths against this base URL
     // by REPLACING the base path. So keep the base URL WITHOUT a path suffix and
     // include the full path (e.g. "/api/mobile/...") in each ApiService request.
-    var BASE_URL = "http://127.0.0.1:8080"
+    var BASE_URL = "http://192.168.1.19:8080"
 }
 
-fun createHttpClient(engine: HttpClientEngine): HttpClient {
+fun createHttpClient(engine: HttpClientEngine, cookieStorage: CookiesStorage): HttpClient {
     val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
@@ -43,7 +42,10 @@ fun createHttpClient(engine: HttpClientEngine): HttpClient {
         // The backend authenticates via session cookies (req.session.customerId).
         // HttpCookies automatically stores the session cookie and sends it on
         // subsequent requests, so no manual token management is required.
-        install(HttpCookies)
+        // The storage is persistent (disk-backed) so the session survives restarts.
+        install(HttpCookies) {
+            storage = cookieStorage
+        }
         install(HttpTimeout) {
             requestTimeoutMillis = 30_000
             connectTimeoutMillis = 15_000

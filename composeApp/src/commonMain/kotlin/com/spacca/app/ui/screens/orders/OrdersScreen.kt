@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -67,7 +68,12 @@ fun OrdersScreen(
         }
     }
 
-    load()
+    // Load once when the screen first appears. Calling this directly in the
+    // composable body would re-fire on every recomposition, keeping the screen
+    // stuck on "Loading...".
+    LaunchedEffect(Unit) {
+        load()
+    }
 
     Column(
         modifier = Modifier

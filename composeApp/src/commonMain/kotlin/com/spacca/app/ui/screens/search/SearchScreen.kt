@@ -1,6 +1,7 @@
 package com.spacca.app.ui.screens.search
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -22,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.spacca.app.data.CatalogRepository
+import com.spacca.app.data.model.CategoryProduct
 import com.spacca.app.ui.components.DefaultEmptyState
 import com.spacca.app.ui.components.DefaultText
 import com.spacca.app.ui.components.DefaultTextField
@@ -30,32 +34,45 @@ import com.spacca.app.ui.theme.AccentGreen
 import com.spacca.app.ui.theme.BackgroundPrimary
 import com.spacca.app.ui.theme.DarkBorder
 import com.spacca.app.ui.theme.LightGrey
+import org.koin.compose.koinInject
 
 data class SearchResult(
-    val name: String,
-    val price: String
+    val product: CategoryProduct
 )
 
 @Composable
 fun SearchScreen(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onProductClick: (CategoryProduct) -> Unit
 ) {
+    val catalog = koinInject<CatalogRepository>()
     var query by remember { mutableStateOf("") }
+    var allDrinks by remember { mutableStateOf<List<CategoryProduct>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
 
-    // Placeholder data
-    val allDrinks = listOf(
-        SearchResult("Espresso", "55 EGP"),
-        SearchResult("Cappuccino", "80 EGP"),
-        SearchResult("Latte", "85 EGP"),
-        SearchResult("Mocha Frappe", "95 EGP"),
-        SearchResult("Caramel Latte", "85 EGP"),
-        SearchResult("Americano", "65 EGP"),
-        SearchResult("Macchiato", "75 EGP"),
-        SearchResult("Vanilla Cappuccino", "90 EGP")
-    )
+    LaunchedEffect(Unit) {
+        loading = true
+        error = null
+        try {
+            // Aggregate every category's products into a single searchable index.
+            val categories = catalog.categories()
+            val products = mutableListOf<CategoryProduct>()
+            for (category in categories) {
+                runCatching { catalog.categoryProducts(category.id) }
+                    .getOrNull()
+                    ?.let { products.addAll(it) }
+            }
+            allDrinks = products
+        } catch (e: Exception) {
+            error = e.message ?: "Could not load products"
+        } finally {
+            loading = false
+        }
+    }
 
     val results = if (query.isBlank()) allDrinks
-    else allDrinks.filter { it.name.contains(query, ignoreCase = true) }
+    else allDrinks.filter { it.name?.contains(query, ignoreCase = true) == true }
 
     Column(
         modifier = Modifier
@@ -72,21 +89,39 @@ fun SearchScreen(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
         )
 
-        if (results.isEmpty()) {
-            DefaultEmptyState(
-                title = "No results found",
-                body = "Try a different search term",
-                icon = Icons.Filled.Search
-            )
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(results) { drink ->
-                    SearchResultRow(drink)
+        when {
+            loading -> {
+                DefaultText(
+                    text = "Loading products...",
+                    fontSize = 13,
+                    fontColor = LightGrey,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                )
+            }
+            error != null -> {
+                DefaultEmptyState(
+                    title = "Could not load products",
+                    body = error ?: "Try again later",
+                    icon = Icons.Filled.Search
+                )
+            }
+            results.isEmpty() -> {
+                DefaultEmptyState(
+                    title = "No results found",
+                    body = "Try a different search term",
+                    icon = Icons.Filled.Search
+                )
+            }
+            else -> {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(results) { drink ->
+                        SearchResultRow(SearchResult(drink)) { onProductClick(drink) }
+                    }
                 }
             }
         }
@@ -94,23 +129,24 @@ fun SearchScreen(
 }
 
 @Composable
-private fun SearchResultRow(drink: SearchResult) {
+private fun SearchResultRow(drink: SearchResult, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
             .background(DarkBorder)
+            .clickable(onClick = onClick)
             .padding(14.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         DefaultText(
-            text = drink.name,
+            text = drink.product.name ?: "Unknown",
             fontSize = 14,
             fontWeight = FontWeight.Medium
         )
         DefaultText(
-            text = drink.price,
+            text = drink.product.price?.let { "%.2f EGP".format(it) } ?: "",
             fontSize = 13,
             fontColor = AccentGreen,
             fontWeight = FontWeight.SemiBold

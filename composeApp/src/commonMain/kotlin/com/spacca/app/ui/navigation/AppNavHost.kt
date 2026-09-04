@@ -1,20 +1,27 @@
 package com.spacca.app.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.spacca.app.data.ApiService
 import com.spacca.app.data.CartStore
+import com.spacca.app.data.SessionStore
 import com.spacca.app.data.model.CategoryProduct
 import com.spacca.app.data.model.DrinkCategory
 import com.spacca.app.data.model.DrinkDetail
 import com.spacca.app.data.model.OrderItem
 import com.spacca.app.data.model.PlaceOrderRequest
+import com.spacca.app.ui.screens.auth.ConfirmPinScreen
 import com.spacca.app.ui.screens.auth.LoginPinScreen
 import com.spacca.app.ui.screens.auth.LoginScreen
 import com.spacca.app.ui.screens.auth.OtpScreen
 import com.spacca.app.ui.screens.auth.PinScreen
+import com.spacca.app.ui.screens.auth.RegisterScreen
 import com.spacca.app.ui.screens.cart.CartScreen
 import com.spacca.app.ui.screens.categories.CategoriesScreen
 import com.spacca.app.ui.screens.checkout.CheckoutScreen
@@ -24,28 +31,38 @@ import com.spacca.app.ui.screens.friends.FriendsScreen
 import com.spacca.app.ui.screens.home.HomeScreen
 import com.spacca.app.ui.screens.main.MainScreen
 import com.spacca.app.ui.screens.more.MoreScreen
+import com.spacca.app.ui.screens.more.PrivacyPolicyScreen
+import com.spacca.app.ui.screens.more.TermsAndConditionsScreen
 import com.spacca.app.ui.screens.onboarding.OnboardingScreen
 import com.spacca.app.ui.screens.order.OrderConfirmationScreen
 import com.spacca.app.ui.screens.order.OrderDetailsScreen
 import com.spacca.app.ui.screens.order.OrderSummaryScreen
 import com.spacca.app.ui.screens.orders.OrdersScreen
 import com.spacca.app.ui.screens.points.PointsScreen
+import com.spacca.app.ui.screens.product.CustomizableDrinkDetailsScreen
 import com.spacca.app.ui.screens.product.ProductDetailsScreen
 import com.spacca.app.ui.screens.products.ProductsScreen
 import com.spacca.app.ui.screens.profile.ChangePhoneScreen
 import com.spacca.app.ui.screens.profile.ChangePinScreen
+import com.spacca.app.ui.screens.profile.DeleteProfileReasonScreen
+import com.spacca.app.ui.screens.profile.DeleteProfileScreen
 import com.spacca.app.ui.screens.profile.EditProfileScreen
 import com.spacca.app.ui.screens.profile.ProfileScreen
+import com.spacca.app.ui.screens.saved.SavedCustomizedProductsScreen
 import com.spacca.app.ui.screens.saved.SavedDrinksScreen
 import com.spacca.app.ui.screens.search.SearchScreen
+import com.spacca.app.ui.screens.splash.SplashScreen
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
 object Routes {
+    const val SPLASH = "splash"
     const val ONBOARDING = "onboarding"
     const val LOGIN = "login"
+    const val REGISTER = "register"
     const val OTP = "otp"
     const val PIN = "pin"
+    const val CONFIRM_PIN = "confirm_pin"
     const val LOGIN_PIN = "login_pin"
     const val MAIN = "main"
 
@@ -53,6 +70,7 @@ object Routes {
     const val PRODUCTS = "products"
     const val PRODUCT = "product"
     const val CUSTOMIZATION = "customization"
+    const val CUSTOMIZABLE_DRINK_DETAILS = "customizable_drink_details"
 
     const val CART = "cart"
     const val CHECKOUT = "checkout"
@@ -65,16 +83,64 @@ object Routes {
     const val EDIT_PROFILE = "edit_profile"
     const val CHANGE_PHONE = "change_phone"
     const val CHANGE_PIN = "change_pin"
+    const val DELETE_PROFILE_REASON = "delete_profile_reason"
+    const val DELETE_PROFILE = "delete_profile"
     const val POINTS = "points"
     const val FAVORITES = "favorites"
     const val SAVED_DRINKS = "saved_drinks"
+    const val SAVED_CUSTOMIZED_PRODUCTS = "saved_customized_products"
     const val FRIENDS = "friends"
+    const val TERMS = "terms"
+    const val PRIVACY = "privacy"
 }
 
 @Composable
 fun AppNavHost() {
     val navController = rememberNavController()
-    NavHost(navController = navController, startDestination = Routes.ONBOARDING) {
+    val session = koinInject<SessionStore>()
+    val api = koinInject<ApiService>()
+    val scope = rememberCoroutineScope()
+
+    // Resume where the user left off: logged in → Home; registered (hasPin) →
+    // phone + PIN login (no OTP); otherwise onboarding. The splash screen is
+    // shown first and routes to the appropriate destination after a brief delay.
+    val startDestination = Routes.SPLASH
+
+    // Validate a restored session on startup. If the backend session expired
+    // (me() returns null on 401), clear local state and route to the
+    // appropriate login screen. Network failures (offline) keep the session.
+    LaunchedEffect(Unit) {
+        if (session.isLoggedIn.value) {
+            try {
+                val customer = api.me()
+                if (customer == null) {
+                    session.clearSession()
+                    api.clearCookies()
+                    val dest = if (session.hasPin.value == true)
+                        "${Routes.LOGIN_PIN}?phone=${session.phone.value ?: ""}"
+                    else Routes.ONBOARDING
+                    navController.navigate(dest) { popUpTo(navController.graph.id) { inclusive = true } }
+                }
+            } catch (e: Exception) {
+                // offline or other — keep the session
+            }
+        }
+    }
+
+    NavHost(navController = navController, startDestination = startDestination) {
+        composable(Routes.SPLASH) {
+            SplashScreen()
+            // After a brief splash, route to the appropriate start destination.
+            LaunchedEffect(Unit) {
+                kotlinx.coroutines.delay(1200)
+                val dest = when {
+                    session.isLoggedIn.value -> Routes.MAIN
+                    session.hasPin.value == true -> "${Routes.LOGIN_PIN}?phone=${session.phone.value ?: ""}"
+                    else -> Routes.ONBOARDING
+                }
+                navController.navigate(dest) { popUpTo(Routes.SPLASH) { inclusive = true } }
+            }
+        }
         composable(Routes.ONBOARDING) {
             OnboardingScreen(
                 onGetStarted = { navController.navigate(Routes.LOGIN) },
@@ -84,7 +150,21 @@ fun AppNavHost() {
         composable(Routes.LOGIN) {
             LoginScreen(
                 onBack = { navController.popBackStack() },
-                onOtpSent = { phone -> navController.navigate("${Routes.OTP}?phone=$phone") }
+                onOtpSent = { phone -> navController.navigate("${Routes.OTP}?phone=$phone") },
+                onPinLogin = { phone -> navController.navigate("${Routes.LOGIN_PIN}?phone=$phone") },
+                onRegister = { phone -> navController.navigate("${Routes.REGISTER}?phone=$phone") }
+            )
+        }
+        composable("${Routes.REGISTER}?phone={phone}") { backStackEntry ->
+            val phone = backStackEntry.arguments?.getString("phone") ?: ""
+            RegisterScreen(
+                phone = phone,
+                onBack = { navController.popBackStack() },
+                onContinue = { firstName, lastName, email, gender, dateOfBirth, referralCode ->
+                    navController.navigate("${Routes.OTP}?phone=$phone")
+                },
+                onTerms = { navController.navigate(Routes.TERMS) },
+                onPrivacy = { navController.navigate(Routes.PRIVACY) }
             )
         }
         composable("${Routes.OTP}?phone={phone}") { backStackEntry ->
@@ -106,7 +186,19 @@ fun AppNavHost() {
             PinScreen(
                 phone = phone,
                 onBack = { navController.popBackStack() },
-                onDone = { navController.navigate(Routes.MAIN) { popUpTo(Routes.ONBOARDING) { inclusive = true } } }
+                onDone = { pin ->
+                    navController.navigate("${Routes.CONFIRM_PIN}?phone=$phone&pin=$pin")
+                }
+            )
+        }
+        composable("${Routes.CONFIRM_PIN}?phone={phone}&pin={pin}") { backStackEntry ->
+            val phone = backStackEntry.arguments?.getString("phone") ?: ""
+            val pin = backStackEntry.arguments?.getString("pin") ?: ""
+            ConfirmPinScreen(
+                phone = phone,
+                pin = pin,
+                onBack = { navController.popBackStack() },
+                onConfirmed = { navController.navigate(Routes.MAIN) { popUpTo(0) { inclusive = true } } }
             )
         }
         composable("${Routes.LOGIN_PIN}?phone={phone}") { backStackEntry ->
@@ -114,7 +206,7 @@ fun AppNavHost() {
             LoginPinScreen(
                 phone = phone,
                 onBack = { navController.popBackStack() },
-                onDone = { navController.navigate(Routes.MAIN) { popUpTo(Routes.ONBOARDING) { inclusive = true } } }
+                onDone = { navController.navigate(Routes.MAIN) { popUpTo(0) { inclusive = true } } }
             )
         }
         composable(Routes.MAIN) {
@@ -128,13 +220,28 @@ fun AppNavHost() {
                 onOrders = { navController.navigate(Routes.ORDERS) },
                 onPoints = { navController.navigate(Routes.POINTS) },
                 onFavorites = { navController.navigate(Routes.FAVORITES) },
-                onSavedDrinks = { navController.navigate(Routes.SAVED_DRINKS) }
+                onSavedDrinks = { navController.navigate(Routes.SAVED_DRINKS) },
+                onSavedCustomizedProducts = { navController.navigate(Routes.SAVED_CUSTOMIZED_PRODUCTS) },
+                onTerms = { navController.navigate(Routes.TERMS) },
+                onPrivacy = { navController.navigate(Routes.PRIVACY) },
+                onProductClick = { product ->
+                    navController.navigate(
+                        "${Routes.PRODUCT}?drinkId=${product.id}&name=${product.name ?: ""}&price=${product.price?.toDoubleOrNull() ?: 0.0}&customizable=false&imageUrl=${product.image ?: ""}"
+                    )
+                }
             )
         }
 
         // ---- Search / Products / Product / Customization ----
         composable(Routes.SEARCH) {
-            SearchScreen(onBack = { navController.popBackStack() })
+            SearchScreen(
+                onBack = { navController.popBackStack() },
+                onProductClick = { product ->
+                    navController.navigate(
+                        "${Routes.PRODUCT}?drinkId=${product.id}&name=${product.name ?: ""}&price=${product.price ?: 0.0}&customizable=${product.isCustomizable ?: false}&imageUrl=${product.imageUrl ?: ""}"
+                    )
+                }
+            )
         }
         composable("${Routes.PRODUCTS}?categoryId={categoryId}&name={name}") { backStackEntry ->
             val categoryId = backStackEntry.arguments?.getString("categoryId")?.toIntOrNull() ?: 0
@@ -213,31 +320,73 @@ fun AppNavHost() {
                 }
             )
         }
+        composable("${Routes.CUSTOMIZABLE_DRINK_DETAILS}?drinkId={drinkId}") { backStackEntry ->
+            val drinkId = backStackEntry.arguments?.getString("drinkId")?.toIntOrNull() ?: 0
+            val cartStore = koinInject<CartStore>()
+            CustomizableDrinkDetailsScreen(
+                drinkId = drinkId,
+                onBack = { navController.popBackStack() },
+                onCustomize = {
+                    navController.navigate("${Routes.CUSTOMIZATION}?drinkId=$drinkId&name=&price=0.0&qty=1")
+                },
+                onAddToCart = { quantity ->
+                    cartStore.add(
+                        com.spacca.app.data.CartLine(
+                            id = 0,
+                            drinkId = drinkId,
+                            name = "",
+                            quantity = quantity,
+                            unitPrice = 0.0
+                        )
+                    )
+                    navController.navigate(Routes.CART)
+                }
+            )
+        }
 
         // ---- Cart / Checkout / Order flow ----
         composable(Routes.CART) {
             CartScreen(
                 onCheckout = { navController.navigate(Routes.CHECKOUT) },
-                onStartShopping = { navController.popBackStack() }
+                onStartShopping = { navController.popBackStack() },
+                onContinueShopping = {
+                    // Return to the category (ProductsScreen) the customer was
+                    // browsing. If no category is in the back stack (e.g. cart
+                    // opened straight from Home), fall back to the main screen.
+                    val popped = navController.popBackStack(
+                        "${Routes.PRODUCTS}?categoryId={categoryId}&name={name}",
+                        inclusive = false
+                    )
+                    if (!popped) {
+                        navController.popBackStack(Routes.MAIN, inclusive = false)
+                    }
+                }
             )
         }
         composable(Routes.CHECKOUT) {
             CheckoutScreen(
                 onBack = { navController.popBackStack() },
-                onPlaceOrder = { branchId, paymentMethod ->
-                    navController.navigate("${Routes.ORDER_SUMMARY}?branchId=$branchId&payment=$paymentMethod")
+                onRequireLogin = { navController.navigate(Routes.LOGIN) },
+                onPlaceOrder = { branchId, paymentMethod, pickupTime ->
+                    navController.navigate("${Routes.ORDER_SUMMARY}?branchId=$branchId&payment=$paymentMethod&pickupTime=${pickupTime ?: ""}")
                 }
             )
         }
-        composable("${Routes.ORDER_SUMMARY}?branchId={branchId}&payment={payment}") { backStackEntry ->
+        composable("${Routes.ORDER_SUMMARY}?branchId={branchId}&payment={payment}&pickupTime={pickupTime}") { backStackEntry ->
             val branchId = backStackEntry.arguments?.getString("branchId")?.toIntOrNull() ?: 0
             val payment = backStackEntry.arguments?.getString("payment") ?: "Cash"
+            val pickupTime = backStackEntry.arguments?.getString("pickupTime")
             val scope = androidx.compose.runtime.rememberCoroutineScope()
             val cartStore = koinInject<CartStore>()
             val api = koinInject<com.spacca.app.data.ApiService>()
             OrderSummaryScreen(
                 onBack = { navController.popBackStack() },
-                onConfirm = {
+                onError = { message ->
+                    // Surface the failure instead of silently navigating to a
+                    // fake confirmation. Pop back to checkout so the user can retry.
+                    navController.popBackStack()
+                },
+                onConfirm = { discountCode ->
                     // Place order via ApiService
                     scope.launch {
                         try {
@@ -253,16 +402,21 @@ fun AppNavHost() {
                                 PlaceOrderRequest(
                                     branchId = branchId,
                                     items = items,
-                                    paymentMethod = payment
+                                    paymentMethod = payment,
+                                    discountCode = discountCode
                                 )
                             )
-                            cartStore.clear()
-                            val orderNumber = order?.orderNumber ?: "0000"
-                            navController.navigate("${Routes.ORDER_CONFIRMATION}?orderNumber=$orderNumber") {
-                                popUpTo(Routes.MAIN)
+                            if (order != null) {
+                                cartStore.clear()
+                                val orderNumber = order.orderNumber ?: "0000"
+                                navController.navigate("${Routes.ORDER_CONFIRMATION}?orderNumber=$orderNumber") {
+                                    popUpTo(Routes.MAIN)
+                                }
+                            } else {
+                                navController.popBackStack()
                             }
                         } catch (e: Exception) {
-                            // ignore for now
+                            navController.popBackStack()
                         }
                     }
                 }
@@ -298,7 +452,39 @@ fun AppNavHost() {
                 onEditProfile = { navController.navigate(Routes.EDIT_PROFILE) },
                 onChangePhone = { navController.navigate(Routes.CHANGE_PHONE) },
                 onChangePin = { navController.navigate(Routes.CHANGE_PIN) },
-                onLogout = { navController.navigate(Routes.ONBOARDING) { popUpTo(Routes.MAIN) { inclusive = true } } }
+                onDeleteProfile = { navController.navigate(Routes.DELETE_PROFILE_REASON) },
+                onLogout = {
+                    scope.launch {
+                        try { api.logout() } catch (e: Exception) { /* best-effort */ }
+                        api.clearCookies()
+                        session.clear()
+                        navController.navigate(Routes.ONBOARDING) { popUpTo(0) { inclusive = true } }
+                    }
+                }
+            )
+        }
+        composable(Routes.DELETE_PROFILE_REASON) {
+            DeleteProfileReasonScreen(
+                onBack = { navController.popBackStack() },
+                onNext = { reason ->
+                    navController.navigate("${Routes.DELETE_PROFILE}?reason=${reason}")
+                }
+            )
+        }
+        composable("${Routes.DELETE_PROFILE}?reason={reason}") { backStackEntry ->
+            val reason = backStackEntry.arguments?.getString("reason") ?: ""
+            DeleteProfileScreen(
+                reason = reason,
+                onBack = { navController.popBackStack() },
+                onKeep = { navController.popBackStack() },
+                onDelete = {
+                    scope.launch {
+                        try { api.deleteAccount() } catch (e: Exception) { /* best-effort */ }
+                        api.clearCookies()
+                        session.clear()
+                        navController.navigate(Routes.ONBOARDING) { popUpTo(0) { inclusive = true } }
+                    }
+                }
             )
         }
         composable(Routes.EDIT_PROFILE) {
@@ -323,13 +509,35 @@ fun AppNavHost() {
             PointsScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.FAVORITES) {
-            FavoritesScreen(onBack = { navController.popBackStack() })
+            FavoritesScreen(
+                onBack = { navController.popBackStack() },
+                onDrinkClick = { fav ->
+                    val drink = fav.drink
+                    navController.navigate(
+                        "${Routes.PRODUCT}?drinkId=${fav.drinkId}&name=${drink?.name ?: ""}&price=${drink?.basePrice ?: 0.0}&customizable=${drink?.isCustomizable ?: false}&imageUrl=${drink?.imageUrl ?: ""}"
+                    )
+                }
+            )
         }
         composable(Routes.SAVED_DRINKS) {
             SavedDrinksScreen(onBack = { navController.popBackStack() })
         }
+        composable(Routes.SAVED_CUSTOMIZED_PRODUCTS) {
+            SavedCustomizedProductsScreen(
+                onBack = { navController.popBackStack() },
+                onDrinkClick = { savedDrink ->
+                    navController.navigate("${Routes.CUSTOMIZABLE_DRINK_DETAILS}?drinkId=${savedDrink.drinkId}")
+                }
+            )
+        }
         composable(Routes.FRIENDS) {
             FriendsScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.TERMS) {
+            TermsAndConditionsScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.PRIVACY) {
+            PrivacyPolicyScreen(onBack = { navController.popBackStack() })
         }
     }
 }

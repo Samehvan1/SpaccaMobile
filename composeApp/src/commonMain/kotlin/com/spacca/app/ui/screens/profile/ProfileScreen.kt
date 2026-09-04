@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,11 +38,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.layout.ContentScale
 import com.spacca.app.data.ApiService
 import com.spacca.app.data.model.MobileCustomer
 import com.spacca.app.ui.components.DefaultButton
 import com.spacca.app.ui.components.DefaultText
 import com.spacca.app.ui.components.DefaultTopBar
+import com.spacca.app.ui.components.SpaccaImage
 import com.spacca.app.ui.components.clickableNoRipple
 import com.spacca.app.ui.theme.AccentGreen
 import com.spacca.app.ui.theme.BackgroundPrimary
@@ -60,6 +63,7 @@ fun ProfileScreen(
     onEditProfile: () -> Unit = {},
     onChangePhone: () -> Unit = {},
     onChangePin: () -> Unit = {},
+    onDeleteProfile: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
     val api = koinInject<ApiService>()
@@ -70,7 +74,7 @@ fun ProfileScreen(
     var actionError by remember { mutableStateOf<String?>(null) }
     var actionBusy by remember { mutableStateOf(false) }
 
-    scope.launch {
+    LaunchedEffect(Unit) {
         loading = true
         try {
             customer = api.me()
@@ -109,7 +113,16 @@ fun ProfileScreen(
                     .background(DarkBorder),
                 contentAlignment = Alignment.Center
             ) {
-                DefaultText(text = initials, fontSize = 28, fontWeight = FontWeight.Bold)
+                if (customer?.avatarUrl != null) {
+                    SpaccaImage(
+                        imageUrl = customer?.avatarUrl,
+                        contentDescription = "Profile photo",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.size(80.dp)
+                    )
+                } else {
+                    DefaultText(text = initials, fontSize = 28, fontWeight = FontWeight.Bold)
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -178,7 +191,7 @@ fun ProfileScreen(
                     label = "Delete Account",
                     labelColor = Red,
                     iconTint = Red,
-                    onClick = { confirmAction = "delete" }
+                    onClick = onDeleteProfile
                 )
             }
 

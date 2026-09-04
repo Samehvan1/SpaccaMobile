@@ -7,6 +7,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -54,10 +55,12 @@ import com.spacca.app.data.location.LocationStore
 import com.spacca.app.data.location.LocationStatus
 import com.spacca.app.data.location.nearestBranch
 import com.spacca.app.data.model.DrinkCategory
+import com.spacca.app.data.model.Favorite
 import com.spacca.app.data.model.HomeProduct
 import com.spacca.app.data.model.HomeSliderItem
 import com.spacca.app.data.model.SavedDrink
 import com.spacca.app.ui.components.DefaultText
+import com.spacca.app.ui.components.SpaccaImage
 import com.spacca.app.ui.components.clickableNoRipple
 import com.spacca.app.ui.theme.AccentGreen
 import com.spacca.app.ui.theme.BackgroundPrimary
@@ -74,7 +77,8 @@ import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.koinInject
 import spaccamobile.composeapp.generated.resources.Res
 import spaccamobile.composeapp.generated.resources.ic_category_placeholder
-import spaccamobile.composeapp.generated.resources.ic_coffee_cup
+import spaccamobile.composeapp.generated.resources.ic_home_slider_2
+import spaccamobile.composeapp.generated.resources.ic_home_slider_3
 import spaccamobile.composeapp.generated.resources.ic_home_slider_placeholder
 import spaccamobile.composeapp.generated.resources.ic_home_top_bar_bg
 
@@ -85,6 +89,13 @@ private val fallbackSlider = listOf(
     HomeSliderItem(1, title = "American Coffee\nLike no other"),
     HomeSliderItem(2, title = "Cold Brew\nRefreshing & bold"),
     HomeSliderItem(3, title = "Signature Latte\nCrafted for you")
+)
+
+// Distinct banner art per fallback slide (index-aligned with fallbackSlider).
+private val fallbackSliderImages = listOf(
+    Res.drawable.ic_home_slider_placeholder,
+    Res.drawable.ic_home_slider_2,
+    Res.drawable.ic_home_slider_3
 )
 
 private val fallbackFeatured = listOf(
@@ -100,12 +111,19 @@ private val fallbackOffers = listOf(
     HomeProduct(7, name = "Matcha Latte", price = "3.10", originalPrice = "3.90", onSale = true)
 )
 
+// Section card styling — subtle border + tinted background for an elegant card look.
+private val SectionBorder = Color(0xFF4A4A4A)
+private val SectionBackground = Color(0xFF2A2929)
+
 @Composable
 fun HomeScreen(
     onSearchClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
     onCategoryClick: (DrinkCategory) -> Unit = {},
     onViewAllCategories: () -> Unit = {},
-    onViewAllSaved: () -> Unit = {}
+    onViewAllFavorites: () -> Unit = {},
+    onViewAllSaved: () -> Unit = {},
+    onProductClick: (HomeProduct) -> Unit = {}
 ) {
     val api = koinInject<ApiService>()
     val catalog = koinInject<CatalogRepository>()
@@ -113,10 +131,12 @@ fun HomeScreen(
     var categories by remember { mutableStateOf<List<DrinkCategory>>(emptyList()) }
     var categoriesError by remember { mutableStateOf<String?>(null) }
     var points by remember { mutableStateOf<Int?>(null) }
+    var avatarUrl by remember { mutableStateOf<String?>(null) }
     var savedDrinks by remember { mutableStateOf<List<SavedDrink>>(emptyList()) }
     var slider by remember { mutableStateOf<List<HomeSliderItem>>(fallbackSlider) }
     var featured by remember { mutableStateOf<List<HomeProduct>>(fallbackFeatured) }
     var offers by remember { mutableStateOf<List<HomeProduct>>(fallbackOffers) }
+    var favorites by remember { mutableStateOf<List<Favorite>>(emptyList()) }
 
     // Current location + branches for the nearest-branch pickup display.
     val locationStore = koinInject<LocationStore>()
@@ -145,9 +165,19 @@ fun HomeScreen(
                 // points are optional
             }
             try {
+                avatarUrl = api.me()?.avatarUrl
+            } catch (_: Exception) {
+                // avatar is optional (guests get 401)
+            }
+            try {
                 savedDrinks = api.savedDrinks()
             } catch (_: Exception) {
                 // saved drinks are optional
+            }
+            try {
+                favorites = api.favorites()
+            } catch (_: Exception) {
+                // favorites are optional (guests get 401)
             }
             // Home endpoints are not implemented yet; fall back to static data on failure.
             try {
@@ -180,7 +210,7 @@ fun HomeScreen(
             .fillMaxSize()
             .background(BackgroundPrimary)
     ) {
-        HomeTopBar(onSearchClick = onSearchClick, pickupLocation = pickupText)
+        HomeTopBar(onSearchClick = onSearchClick, onProfileClick = onProfileClick, pickupLocation = pickupText, avatarUrl = avatarUrl)
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -204,6 +234,26 @@ fun HomeScreen(
                 FeaturedCoffeeSection(slides = slider)
             }
 
+            // My Favorites: shown only when there is at least one favorite.
+            if (favorites.isNotEmpty()) {
+                item {
+                    ProductSection(
+                        title = "My Favorites",
+                        products = favorites.map { fav ->
+                            HomeProduct(
+                                id = fav.drinkId,
+                                name = fav.drink?.name,
+                                image = fav.drink?.imageUrl,
+                                price = fav.drink?.basePrice?.let { "%.2f".format(it) }
+                            )
+                        },
+                        showPrice = true,
+                        onViewAll = onViewAllFavorites,
+                        onProductClick = onProductClick
+                    )
+                }
+            }
+
             // Featured products: shown only when there is at least one.
             if (featured.isNotEmpty()) {
                 item {
@@ -211,7 +261,8 @@ fun HomeScreen(
                         title = "Featured",
                         products = featured,
                         showPrice = true,
-                        onViewAll = onViewAllCategories
+                        onViewAll = onViewAllCategories,
+                        onProductClick = onProductClick
                     )
                 }
             }
@@ -224,7 +275,8 @@ fun HomeScreen(
                         products = offers,
                         showPrice = true,
                         showOriginalPrice = true,
-                        onViewAll = onViewAllCategories
+                        onViewAll = onViewAllCategories,
+                        onProductClick = onProductClick
                     )
                 }
             }
@@ -243,7 +295,7 @@ fun HomeScreen(
 // HomeTopBar
 // ---------------------------------------------------------------------------
 @Composable
-private fun HomeTopBar(onSearchClick: () -> Unit, pickupLocation: String) {
+private fun HomeTopBar(onSearchClick: () -> Unit, onProfileClick: () -> Unit, pickupLocation: String, avatarUrl: String?) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -277,15 +329,25 @@ private fun HomeTopBar(onSearchClick: () -> Unit, pickupLocation: String) {
                     modifier = Modifier
                         .size(28.dp)
                         .clip(CircleShape)
-                        .background(AccentGreen),
+                        .background(AccentGreen)
+                        .clickableNoRipple(onClick = onProfileClick),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Person,
-                        contentDescription = "Profile",
-                        tint = DarkGrey,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    if (avatarUrl != null) {
+                        SpaccaImage(
+                            imageUrl = avatarUrl,
+                            contentDescription = "Profile",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Filled.Person,
+                            contentDescription = "Profile",
+                            tint = DarkGrey,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
             Row(
@@ -333,35 +395,7 @@ private fun CategoriesSection(
     onCategoryClick: (DrinkCategory) -> Unit,
     onViewAll: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 8.dp, bottom = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            DefaultText(
-                text = "Categories",
-                fontSize = 14,
-                fontWeight = FontWeight.SemiBold
-            )
-DefaultText(
-                text = "View all",
-                fontSize = 12,
-                fontColor = AccentGreen,
-                style = TextStyle(textDecoration = TextDecoration.Underline),
-                modifier = Modifier
-                    .padding(end = 16.dp)
-                    .clickableNoRipple(onClick = onViewAll)
-            )
-        }
-
+    SectionCard(title = "Categories", onViewAll = onViewAll) {
         when {
             categoriesError != null -> {
                 DefaultText(
@@ -518,14 +552,26 @@ private fun FeaturedCoffeeSection(slides: List<HomeSliderItem>) {
         HorizontalPager(state = pagerState) { page ->
             val slide = slides[page]
             Box(modifier = Modifier.fillMaxWidth()) {
-                Image(
-                    painter = painterResource(Res.drawable.ic_home_slider_placeholder),
-                    contentDescription = slide.title,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(220.dp)
-                )
+                val localImage = fallbackSliderImages.getOrNull(page % fallbackSliderImages.size)
+                if (slide.image.isNullOrBlank()) {
+                    Image(
+                        painter = painterResource(localImage ?: Res.drawable.ic_home_slider_placeholder),
+                        contentDescription = slide.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(220.dp)
+                    )
+                } else {
+                    SpaccaImage(
+                        imageUrl = slide.image,
+                        contentDescription = slide.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(220.dp)
+                    )
+                }
                 DefaultText(
                     text = slide.title ?: "",
                     fontSize = 20,
@@ -567,15 +613,48 @@ private fun ProductSection(
     products: List<HomeProduct>,
     showPrice: Boolean = true,
     showOriginalPrice: Boolean = false,
-    onViewAll: () -> Unit = {}
+    onViewAll: () -> Unit = {},
+    onProductClick: (HomeProduct) -> Unit = {}
+) {
+    SectionCard(title = title, onViewAll = onViewAll) {
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(products) { product ->
+                ProductCard(
+                    product = product,
+                    showPrice = showPrice,
+                    showOriginalPrice = showOriginalPrice,
+                    onClick = { onProductClick(product) }
+                )
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// SectionCard - elegant bordered container shared by all home sections
+// ---------------------------------------------------------------------------
+@Composable
+private fun SectionCard(
+    title: String,
+    onViewAll: () -> Unit = {},
+    content: @Composable ColumnScope.() -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 24.dp, bottom = 8.dp, start = 16.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .border(1.dp, SectionBorder, RoundedCornerShape(16.dp))
+            .background(SectionBackground)
+            .padding(vertical = 16.dp)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -589,24 +668,11 @@ private fun ProductSection(
                 fontSize = 12,
                 fontColor = AccentGreen,
                 style = TextStyle(textDecoration = TextDecoration.Underline),
-                modifier = Modifier
-                    .padding(end = 16.dp)
-                    .clickableNoRipple(onClick = onViewAll)
+                modifier = Modifier.clickableNoRipple(onClick = onViewAll)
             )
         }
-        Spacer(Modifier.height(24.dp))
-        LazyRow(
-            contentPadding = PaddingValues(end = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(products) { product ->
-                ProductCard(
-                    product = product,
-                    showPrice = showPrice,
-                    showOriginalPrice = showOriginalPrice
-                )
-            }
-        }
+        Spacer(Modifier.height(16.dp))
+        content()
     }
 }
 
@@ -614,56 +680,61 @@ private fun ProductSection(
 private fun ProductCard(
     product: HomeProduct,
     showPrice: Boolean,
-    showOriginalPrice: Boolean
+    showOriginalPrice: Boolean,
+    onClick: () -> Unit = {}
 ) {
-    Box(modifier = Modifier.width(126.dp)) {
+    Column(
+        modifier = Modifier
+            .width(126.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(BackgroundSecondary)
+            .clickableNoRipple(onClick = onClick)
+    ) {
+        // Product image — centred in its own top area
         Box(
             modifier = Modifier
-                .width(126.dp)
-                .height(108.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(BackgroundSecondary)
-                .padding(10.dp),
-            contentAlignment = Alignment.BottomStart
+                .fillMaxWidth()
+                .height(80.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Column {
-                DefaultText(
-                    text = product.name ?: "Product",
-                    fontSize = 12,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 2
-                )
-                if (showPrice) {
-                    Spacer(Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+            SpaccaImage(
+                imageUrl = product.image,
+                contentDescription = product.name,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.size(68.dp)
+            )
+        }
+        // Product name & price — always fully visible below the image
+        Column(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
+        ) {
+            DefaultText(
+                text = product.name ?: "Product",
+                fontSize = 12,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2
+            )
+            if (showPrice) {
+                Spacer(Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    DefaultText(
+                        text = "EGP ${product.price ?: ""}",
+                        fontSize = 12,
+                        fontWeight = FontWeight.Bold,
+                        fontColor = AccentGreen
+                    )
+                    if (showOriginalPrice && product.originalPrice != null) {
+                        Spacer(Modifier.width(6.dp))
                         DefaultText(
-                            text = "EGP ${product.price ?: ""}",
-                            fontSize = 12,
-                            fontWeight = FontWeight.Bold,
-                            fontColor = AccentGreen
+                            text = "EGP ${product.originalPrice}",
+                            fontSize = 10,
+                            fontColor = Grey,
+                            style = TextStyle(textDecoration = TextDecoration.LineThrough)
                         )
-                        if (showOriginalPrice && product.originalPrice != null) {
-                            Spacer(Modifier.width(6.dp))
-                            DefaultText(
-                                text = "EGP ${product.originalPrice}",
-                                fontSize = 10,
-                                fontColor = Grey,
-                                style = TextStyle(textDecoration = TextDecoration.LineThrough)
-                            )
-                        }
                     }
                 }
             }
         }
-        Image(
-            painter = painterResource(Res.drawable.ic_coffee_cup),
-            contentDescription = product.name,
-            contentScale = ContentScale.Fit,
-            modifier = Modifier
-                .size(80.dp)
-                .align(Alignment.TopCenter)
-                .offset(y = (-16).dp)
-        )
     }
 }
 
@@ -672,33 +743,11 @@ private fun ProductCard(
 // ---------------------------------------------------------------------------
 @Composable
 private fun SavedDrinksSection(savedDrinks: List<SavedDrink>, onViewAll: () -> Unit = {}) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 24.dp, bottom = 16.dp, start = 16.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+    SectionCard(title = "Saved drinks", onViewAll = onViewAll) {
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            DefaultText(
-                text = "Saved drinks",
-                fontSize = 14,
-                fontWeight = FontWeight.Bold
-            )
-            DefaultText(
-                text = "View all",
-                fontSize = 12,
-                fontColor = AccentGreen,
-                style = TextStyle(textDecoration = TextDecoration.Underline),
-                modifier = Modifier
-                    .padding(end = 16.dp)
-                    .clickableNoRipple(onClick = onViewAll)
-            )
-        }
-        Spacer(Modifier.height(24.dp))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             items(savedDrinks) { drink ->
                 Box(
                     modifier = Modifier

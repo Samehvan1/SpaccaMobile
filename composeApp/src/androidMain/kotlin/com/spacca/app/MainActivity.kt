@@ -9,6 +9,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import com.spacca.app.data.ImagePickerHolder
 import com.spacca.app.data.cache.AndroidContextHolder
 
 class MainActivity : ComponentActivity() {
@@ -16,6 +17,9 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         enableEdgeToEdge()
         AndroidContextHolder.context = applicationContext
+
+        // Register the image picker launcher for the avatar photo picker.
+        ImagePickerHolder.register(this)
 
         // Request location permission on app open so the app can capture the
         // current location (used later to determine the nearest branch).

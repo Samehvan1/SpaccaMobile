@@ -33,7 +33,8 @@ fun DefaultButton(
     modifier: Modifier = Modifier,
     variant: ButtonVariant = ButtonVariant.PRIMARY,
     enabled: Boolean = true,
-    height: Int = 40
+    height: Int = 40,
+    fontSize: Int = 15
 ) {
     val fill = when (variant) {
         ButtonVariant.PRIMARY -> AccentGreen
@@ -51,14 +52,14 @@ fun DefaultButton(
             .fillMaxWidth()
             .height(height.dp)
             .clip(RoundedCornerShape(8.dp))
-            .background(if (enabled) fill else DarkBorder)
+            .background(if (enabled) fill else fill.copy(alpha = 0.4f))
             .clickableNoRipple(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
-            color = if (enabled) textColor else White,
-            fontSize = 15.sp,
+            color = if (enabled) textColor else White.copy(alpha = 0.5f),
+            fontSize = fontSize.sp,
             fontWeight = FontWeight.Medium,
             textAlign = TextAlign.Center
         )

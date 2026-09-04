@@ -7,11 +7,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,30 +20,27 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.spacca.app.data.ApiService
-import com.spacca.app.data.SessionStore
 import com.spacca.app.ui.components.DefaultButton
 import com.spacca.app.ui.components.DefaultTextField
-import com.spacca.app.ui.components.DefaultTopBar
 import com.spacca.app.ui.components.DefaultText
+import com.spacca.app.ui.components.DefaultTopBar
 import com.spacca.app.ui.theme.BackgroundPrimary
 import com.spacca.app.ui.theme.LightGrey
 import com.spacca.app.ui.theme.Red
-import kotlinx.coroutines.launch
-import org.koin.compose.koinInject
 
+/**
+ * Separate screen to confirm the PIN the user just created (feature parity
+ * with the native Android ConfirmPinCodeScreen). The KMP app previously
+ * combined create + confirm into a single PinScreen.
+ */
 @Composable
-fun PinScreen(
+fun ConfirmPinScreen(
     phone: String,
+    pin: String,
     onBack: () -> Unit,
-    onDone: (pin: String) -> Unit
+    onConfirmed: () -> Unit
 ) {
-    val api = koinInject<ApiService>()
-    val session = koinInject<SessionStore>()
-    val scope = rememberCoroutineScope()
-    var pin by remember { mutableStateOf("") }
     var confirmPin by remember { mutableStateOf("") }
-    var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
     Column(
@@ -51,43 +48,39 @@ fun PinScreen(
             .fillMaxSize()
             .background(BackgroundPrimary)
     ) {
-        DefaultTopBar(title = "Create PIN", onBack = onBack)
+        DefaultTopBar(title = "Confirm PIN", onBack = onBack)
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(24.dp))
+
             DefaultText(
-                text = "Create a pin code",
-                fontSize = 22,
+                text = "Re-enter your PIN code",
+                fontSize = 20,
                 fontWeight = FontWeight.Bold
             )
             DefaultText(
-                text = "Set a 4-digit PIN to secure your account",
-                fontSize = 14,
+                text = "Enter your PIN code again to continue",
+                fontSize = 11,
                 fontColor = LightGrey,
                 modifier = Modifier.padding(top = 8.dp)
             )
-            Spacer(Modifier.height(32.dp))
-            DefaultTextField(
-                value = pin,
-                onValueChange = { pin = it },
-                placeholder = "Enter PIN",
-                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(Modifier.height(16.dp))
+
+            Spacer(modifier = Modifier.height(32.dp))
+
             DefaultTextField(
                 value = confirmPin,
                 onValueChange = { confirmPin = it },
                 placeholder = "Confirm PIN",
-                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth()
             )
+
             if (error != null) {
                 DefaultText(
                     text = error ?: "",
@@ -96,29 +89,19 @@ fun PinScreen(
                     modifier = Modifier.padding(top = 8.dp)
                 )
             }
-            Spacer(Modifier.height(24.dp))
+
+            Spacer(modifier = Modifier.height(24.dp))
+
             DefaultButton(
-                text = if (loading) "Creating..." else "Create & Continue",
+                text = "Confirm",
+                enabled = confirmPin.length >= 4,
                 onClick = {
-                    scope.launch {
-                        loading = true
-                        error = null
-                        try {
-                            if (pin != confirmPin) {
-                                error = "PINs do not match"
-                            } else {
-                                val resp = api.createPin(phone, pin)
-                                session.setSession(resp.customer?.id, phone, true)
-                                onDone(pin)
-                            }
-                        } catch (e: Exception) {
-                            error = e.message ?: "Something went wrong"
-                        } finally {
-                            loading = false
-                        }
+                    if (confirmPin == pin) {
+                        onConfirmed()
+                    } else {
+                        error = "PINs do not match"
                     }
-                },
-                enabled = pin.length >= 4 && confirmPin.length >= 4 && !loading
+                }
             )
         }
     }

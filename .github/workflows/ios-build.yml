@@ -1,0 +1,90 @@
+name: iOS Build
+
+# Verifies the shared KMP code (commonMain) compiles and links for iOS, and
+# builds the full iOS app via XcodeGen + xcodebuild.
+# Kotlin/Native iOS compilation requires macOS + Xcode, so this runs on a
+# macOS runner. It is the only way to confirm the iOS target builds, since
+# iOS targets cannot be compiled on Windows/Linux hosts.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch: # allow manual trigger from the Actions tab
+
+jobs:
+  compile-ios:
+    name: Compile iOS Kotlin target
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v3
+
+      - name: Compile iOS simulator target
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: wrapper
+          arguments: |
+            :composeApp:compileKotlinIosSimulatorArm64
+            --stacktrace
+
+      - name: Compile iOS device target
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: wrapper
+          arguments: |
+            :composeApp:compileKotlinIosArm64
+            --stacktrace
+
+  build-ios-app:
+    name: Build iOS app (XcodeGen + xcodebuild)
+    runs-on: macos-latest
+    timeout-minutes: 45
+    needs: compile-ios
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: iosApp
+        run: xcodegen generate
+
+      - name: Build iOS app with xcodebuild
+        working-directory: iosApp
+        run: |
+          xcodebuild \
+            -project iosApp.xcodeproj \
+            -scheme iosApp \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Upload app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: iosApp-simulator
+          path: iosApp/build/Debug-iphonesimulator/
+          if-no-files-found: warn

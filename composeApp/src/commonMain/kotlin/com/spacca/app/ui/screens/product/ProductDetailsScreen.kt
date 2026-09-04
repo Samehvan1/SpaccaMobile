@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -32,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.spacca.app.data.ApiService
 import com.spacca.app.data.CatalogRepository
@@ -69,6 +71,8 @@ fun ProductDetailsScreen(
     var favoriteChecked by remember { mutableStateOf(false) }
     var ingredients by remember { mutableStateOf<List<DrinkIngredient>>(emptyList()) }
     var ingredientsLoaded by remember { mutableStateOf(false) }
+    var fullDescription by remember { mutableStateOf<String?>(null) }
+    var isCustomizable by remember { mutableStateOf(drink.isCustomizable == true) }
 
     if (!ingredientsLoaded) {
         ingredientsLoaded = true
@@ -76,7 +80,10 @@ fun ProductDetailsScreen(
             try {
                 // Order by customer index; hide ingredients with index 0 (visually only —
                 // their cost is still included via the customization recipe).
-                ingredients = catalog.drinkDetail(drink.id).ingredients
+                val detail = catalog.drinkDetail(drink.id)
+                fullDescription = detail.drink?.description
+                detail.drink?.isCustomizable?.let { isCustomizable = it }
+                ingredients = detail.ingredients
                     .filter { (it.customerSortOrder ?: 1) > 0 }
                     .sortedBy { it.customerSortOrder ?: 1 }
             } catch (_: Exception) {
@@ -98,7 +105,6 @@ fun ProductDetailsScreen(
     }
 
     val price = drink.price ?: 0.0
-    val isCustomizable = drink.isCustomizable == true
 
     Column(
         modifier = Modifier
@@ -118,74 +124,85 @@ fun ProductDetailsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 88.dp)
         ) {
-            // Product image
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(DarkBorder),
-                contentAlignment = Alignment.Center
-            ) {
-                SpaccaImage(
-                    imageUrl = drink.imageUrl,
-                    contentDescription = drink.name,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Name + Favorite toggle
+            // Product header: description (left) + image (right)
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                DefaultText(
-                    text = drink.name ?: "Product",
-                    fontSize = 20,
-                    fontWeight = FontWeight.Bold
-                )
-                Icon(
-                    imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                    contentDescription = "Toggle favorite",
-                    tint = AccentGreen,
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clickableNoRipple {
-                            val target = !isFavorite
-                            isFavorite = target // optimistic
-                            scope.launch {
-                                try {
-                                    if (target) api.addFavorite(drink.id) else api.removeFavorite(drink.id)
-                                } catch (_: Exception) {
-                                    isFavorite = !target // revert on failure (guest/offline)
+                // Left column — product description
+                Column(modifier = Modifier.weight(1f)) {
+                    // Name + Favorite toggle
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        DefaultText(
+                            text = drink.name ?: "Product",
+                            fontSize = 20,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                            contentDescription = "Toggle favorite",
+                            tint = AccentGreen,
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clickableNoRipple {
+                                    val target = !isFavorite
+                                    isFavorite = target // optimistic
+                                    scope.launch {
+                                        try {
+                                            if (target) api.addFavorite(drink.id) else api.removeFavorite(drink.id)
+                                        } catch (_: Exception) {
+                                            isFavorite = !target // revert on failure (guest/offline)
+                                        }
+                                    }
                                 }
-                            }
-                        }
-                )
-            }
+                        )
+                    }
 
-            Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-            // Price
-            DefaultText(
-                text = "EGP ${"%.2f".format(price)}",
-                fontSize = 16,
-                fontWeight = FontWeight.SemiBold,
-                fontColor = AccentGreen
-            )
+                    // Price
+                    DefaultText(
+                        text = "EGP ${"%.2f".format(price)}",
+                        fontSize = 16,
+                        fontWeight = FontWeight.SemiBold,
+                        fontColor = AccentGreen
+                    )
 
-            if (drink.description != null && drink.description.isNotBlank()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                DefaultText(
-                    text = drink.description,
-                    fontSize = 14,
-                    fontColor = LightGrey,
-                    lineHeight = 20
-                )
+                    val description = fullDescription ?: drink.description
+                    if (description != null && description.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        DefaultText(
+                            text = description,
+                            fontSize = 14,
+                            fontColor = LightGrey,
+                            lineHeight = 20
+                        )
+                    }
+                }
+
+                // Right column — product image
+                Spacer(modifier = Modifier.width(16.dp))
+                Box(
+                    modifier = Modifier
+                        .size(width = 140.dp, height = 160.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(DarkBorder),
+                    contentAlignment = Alignment.Center
+                ) {
+                    SpaccaImage(
+                        imageUrl = drink.imageUrl,
+                        contentDescription = drink.name,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
 
             // Ingredients
@@ -209,8 +226,11 @@ fun ProductDetailsScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            // Ingredient title (slot)
+                        // Slot label (bold) + default option (normal) on the same line
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             DefaultText(
                                 text = ingredient.slotLabel ?: ingredient.name ?: "Ingredient",
                                 fontSize = 14,
@@ -223,11 +243,14 @@ fun ProductDetailsScreen(
                                 ingredient.volumeLabel
                             ).joinToString(" · ")
                             if (detail.isNotBlank()) {
-                                Spacer(modifier = Modifier.height(2.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
                                 DefaultText(
                                     text = detail,
                                     fontSize = 12,
-                                    fontColor = LightGrey
+                                    fontColor = LightGrey,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
                                 )
                             }
                         }
@@ -319,6 +342,7 @@ fun ProductDetailsScreen(
                     text = "Customize",
                     onClick = onCustomize,
                     variant = ButtonVariant.SECONDARY,
+                    enabled = isCustomizable,
                     modifier = Modifier.weight(1f)
                 )
                 DefaultButton(

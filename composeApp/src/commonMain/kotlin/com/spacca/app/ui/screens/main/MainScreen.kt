@@ -16,6 +16,7 @@ import com.spacca.app.data.BranchStore
 import com.spacca.app.data.CartStore
 import com.spacca.app.data.location.LocationStore
 import com.spacca.app.data.model.DrinkCategory
+import com.spacca.app.data.model.HomeProduct
 import com.spacca.app.ui.components.BottomTab
 import com.spacca.app.ui.components.DefaultBottomAppBar
 import com.spacca.app.ui.screens.cart.CartScreen
@@ -33,7 +34,11 @@ fun MainScreen(
     onOrders: () -> Unit = {},
     onPoints: () -> Unit = {},
     onFavorites: () -> Unit = {},
-    onSavedDrinks: () -> Unit = {}
+    onSavedDrinks: () -> Unit = {},
+    onSavedCustomizedProducts: () -> Unit = {},
+    onTerms: () -> Unit = {},
+    onPrivacy: () -> Unit = {},
+    onProductClick: (HomeProduct) -> Unit = {}
 ) {
     var currentTab by remember { mutableStateOf(BottomTab.HOME) }
     val cartStore = koinInject<CartStore>()
@@ -62,22 +67,29 @@ fun MainScreen(
             when (currentTab) {
                 BottomTab.HOME -> HomeScreen(
                     onSearchClick = onSearchClick,
+                    onProfileClick = onProfile,
                     onCategoryClick = onCategoryClick,
                     onViewAllCategories = { currentTab = BottomTab.CATEGORIES },
-                    onViewAllSaved = onSavedDrinks
+                    onViewAllFavorites = onFavorites,
+                    onViewAllSaved = onSavedDrinks,
+                    onProductClick = onProductClick
                 )
                 BottomTab.CATEGORIES -> CategoriesScreen(
                     onCategoryClick = onCategoryClick
                 )
                 BottomTab.CART -> CartScreen(
                     onCheckout = onCartClick,
-                    onStartShopping = { currentTab = BottomTab.HOME }
+                    onStartShopping = { currentTab = BottomTab.HOME },
+                    onContinueShopping = { currentTab = BottomTab.HOME }
                 )
                 BottomTab.MORE -> MoreScreen(
                     onProfile = onProfile,
                     onOrders = onOrders,
                     onPoints = onPoints,
-                    onFavorites = onFavorites
+                    onFavorites = onFavorites,
+                    onSavedCustomizedProducts = onSavedCustomizedProducts,
+                    onTerms = onTerms,
+                    onPrivacy = onPrivacy
                 )
             }
         }

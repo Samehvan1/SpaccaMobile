@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,7 +22,11 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -34,6 +39,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.spacca.app.data.ApiService
+import com.spacca.app.data.SessionStore
 import com.spacca.app.data.model.Branch
 import com.spacca.app.ui.components.DefaultButton
 import com.spacca.app.ui.components.DefaultText
@@ -51,19 +57,24 @@ import com.spacca.app.ui.theme.White
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
-private data class TimeSlot(val label: String)
-private data class PaymentMethod(val name: String)
+private data class PaymentMethod(val label: String, val value: String)
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CheckoutScreen(
     onBack: () -> Unit,
-    onPlaceOrder: (branchId: Int, paymentMethod: String) -> Unit
+    onPlaceOrder: (branchId: Int, paymentMethod: String, pickupTime: String?) -> Unit,
+    onRequireLogin: () -> Unit = {}
 ) {
     val api = koinInject<ApiService>()
+    val session = koinInject<SessionStore>()
     val scope = rememberCoroutineScope()
     var branches by remember { mutableStateOf<List<Branch>>(emptyList()) }
     var loadingBranches by remember { mutableStateOf(true) }
     var branchError by remember { mutableStateOf<String?>(null) }
+
+    // Loyalty points for the "My Points" payment option.
+    var points by remember { mutableStateOf(0) }
 
     fun loadBranches() {
         scope.launch {
@@ -79,28 +90,38 @@ fun CheckoutScreen(
         }
     }
 
-    loadBranches()
+    // Load branches and loyalty points once when the screen first appears.
+    // Calling these directly in the composable body would re-fire on every
+    // recomposition, keeping the screen stuck on "Loading branches...".
+    LaunchedEffect(Unit) {
+        loadBranches()
+        if (session.isLoggedIn.value) {
+            try {
+                points = api.points().points ?: 0
+            } catch (_: Exception) {
+                points = 0
+            }
+        }
+    }
 
-    val timeSlots = remember {
-        listOf(
-            TimeSlot("ASAP (~15 min)"),
-            TimeSlot("12:00 PM - 12:15 PM"),
-            TimeSlot("12:15 PM - 12:30 PM"),
-            TimeSlot("12:30 PM - 12:45 PM"),
-            TimeSlot("1:00 PM - 1:15 PM")
-        )
+    // Pickup time options: ASAP (default) or schedule a custom time.
+    var selectedTimeOption by remember { mutableIntStateOf(0) } // 0 = ASAP, 1 = Schedule
+    val timePickerState = rememberTimePickerState(initialHour = 12, initialMinute = 0, is24Hour = true)
+    var scheduledTime by remember { mutableStateOf<String?>(null) }
+    var timeError by remember { mutableStateOf<String?>(null) }
+
+    // Payment methods: Cash, Card, My Points (only if the customer has points).
+    val hasPoints = points > 0
+    val paymentMethods = remember(hasPoints, points) {
+        buildList {
+            add(PaymentMethod("Cash", "cash"))
+            add(PaymentMethod("Card", "card"))
+            if (hasPoints) add(PaymentMethod("My Points ($points pts)", "points"))
+        }
     }
-    val paymentMethods = remember {
-        listOf(
-            PaymentMethod("SPACCA Pay"),
-            PaymentMethod("Credit / Debit Card"),
-            PaymentMethod("Cash")
-        )
-    }
+    var selectedPayment by remember { mutableIntStateOf(0) }
 
     var selectedBranch by remember { mutableIntStateOf(0) }
-    var selectedTimeSlot by remember { mutableIntStateOf(0) }
-    var selectedPayment by remember { mutableIntStateOf(0) }
 
     Column(
         modifier = Modifier
@@ -111,7 +132,7 @@ fun CheckoutScreen(
 
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .weight(1f)
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
@@ -197,8 +218,9 @@ fun CheckoutScreen(
             // --- Pickup Time ---
             SectionHeader(icon = Icons.Filled.Schedule, title = "Pickup Time")
 
-            timeSlots.forEachIndexed { index, slot ->
-                val isSelected = selectedTimeSlot == index
+            val timeOptions = listOf("ASAP (~15 min)", "Schedule for later")
+            timeOptions.forEachIndexed { index, label ->
+                val isSelected = selectedTimeOption == index
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -210,12 +232,15 @@ fun CheckoutScreen(
                             color = if (isSelected) AccentGreen else DarkBorder,
                             shape = RoundedCornerShape(8.dp)
                         )
-                        .clickableNoRipple { selectedTimeSlot = index }
+                        .clickableNoRipple {
+                            selectedTimeOption = index
+                            timeError = null
+                        }
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     DefaultText(
-                        text = slot.label,
+                        text = label,
                         fontSize = 14,
                         fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
                         modifier = Modifier.weight(1f)
@@ -228,6 +253,26 @@ fun CheckoutScreen(
                             modifier = Modifier.size(20.dp)
                         )
                     }
+                }
+            }
+
+            if (selectedTimeOption == 1) {
+                Spacer(modifier = Modifier.height(8.dp))
+                TimePicker(state = timePickerState)
+                Spacer(modifier = Modifier.height(8.dp))
+                DefaultText(
+                    text = "Selected: ${"%02d:%02d".format(timePickerState.hour, timePickerState.minute)}",
+                    fontSize = 14,
+                    fontColor = AccentGreen,
+                    fontWeight = FontWeight.Medium
+                )
+                if (timeError != null) {
+                    DefaultText(
+                        text = timeError ?: "",
+                        fontSize = 12,
+                        fontColor = Red,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
                 }
             }
 
@@ -254,7 +299,7 @@ fun CheckoutScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     DefaultText(
-                        text = method.name,
+                        text = method.label,
                         fontSize = 14,
                         fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
                         modifier = Modifier.weight(1f)
@@ -270,17 +315,52 @@ fun CheckoutScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            if (!hasPoints) {
+                DefaultText(
+                    text = "My Points is available once you have loyalty points.",
+                    fontSize = 12,
+                    fontColor = LightGrey,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+        }
 
-            // Place order button
+        // --- Place order button (pinned at bottom, outside scroll) ---
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
             DefaultButton(
                 text = "Pay & Place order",
                 onClick = {
+                    if (!session.isLoggedIn.value) {
+                        onRequireLogin()
+                        return@DefaultButton
+                    }
+
+                    // Validate scheduled time is in the future (within 24h window).
+                    if (selectedTimeOption == 1) {
+                        val now = java.time.LocalDateTime.now()
+                        val picked = now
+                            .withHour(timePickerState.hour)
+                            .withMinute(timePickerState.minute)
+                            .withSecond(0)
+                            .withNano(0)
+                        if (!picked.isAfter(now)) {
+                            timeError = "Please pick a future time"
+                            return@DefaultButton
+                        }
+                        scheduledTime = "%02d:%02d".format(timePickerState.hour, timePickerState.minute)
+                    } else {
+                        scheduledTime = null
+                    }
+
                     val branchId = branches.getOrNull(selectedBranch)?.id ?: 0
-                    val payment = paymentMethods.getOrNull(selectedPayment)?.name ?: "Cash"
-                    onPlaceOrder(branchId, payment)
-                },
-                modifier = Modifier.padding(top = 24.dp, bottom = 8.dp)
+                    val payment = paymentMethods.getOrNull(selectedPayment)?.value ?: "cash"
+                    onPlaceOrder(branchId, payment, scheduledTime)
+                }
             )
         }
     }
