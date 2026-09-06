@@ -6,27 +6,50 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.cookies.CookiesStorage
 import io.ktor.client.plugins.cookies.HttpCookies
+import io.ktor.client.plugins.api.createClientPlugin
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import io.ktor.http.takeFrom
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
 object ApiConfig {
-    // Base URL of the SpaccaPos Express backend (mobile routes under /api/mobile)
+    // Base URL of the SpaccaPos Express backend (mobile routes under /api/mobile).
     //
-    // NOTE: 10.0.2.2 is the Android *emulator's* alias for the host machine.
-    // On a physical device this does NOT route to the dev machine, so set this
-    // to the dev machine's LAN IP (e.g. http://192.168.x.x:8080) instead.
-    // This is a `var` so it can be overridden at runtime for device testing.
+    // The app defaults to the production VPS. For local development/testing you
+    // can switch to a local server at runtime from the "More" screen (the
+    // selection is persisted and applied immediately). See EnvironmentStore.
     //
-    // The device and PC must be on the same Wi-Fi network. If the PC's IP
-    // changes, update this value and rebuild (see README / build instructions).
-    //
-    // NOTE: Ktor's defaultRequest resolves request paths against this base URL
-    // by REPLACING the base path. So keep the base URL WITHOUT a path suffix and
-    // include the full path (e.g. "/api/mobile/...") in each ApiService request.
-    var BASE_URL = "http://192.168.1.19:8080"
+    // NOTE: Ktor resolves request paths against this base URL by REPLACING the
+    // base path. So keep the base URL WITHOUT a path suffix and include the full
+    // path (e.g. "/api/mobile/...") in each ApiService request.
+    const val VPS_URL = "https://31-97-157-159.sslip.io"
+    const val DEFAULT_LOCAL_URL = "http://192.168.1.19:8080"
+
+    // Current base URL. This is a `var` so it can be switched at runtime; the
+    // Ktor client resolves it per-request (see dynamicBaseUrl plugin), so changes
+    // take effect immediately without recreating the client or restarting.
+    var BASE_URL = VPS_URL
+}
+
+/**
+ * Resolves relative request URLs (e.g. "/api/mobile/...") against the *current*
+ * [ApiConfig.BASE_URL] on every request. This lets the base URL be switched at
+ * runtime (VPS <-> local) without recreating the HttpClient, because Ktor's
+ * defaultRequest would otherwise capture the base URL only once at client
+ * creation time.
+ */
+private val dynamicBaseUrl = createClientPlugin("DynamicBaseUrl") {
+    onRequest { request, _ ->
+        if (request.url.host.isEmpty()) {
+            val base = ApiConfig.BASE_URL.trimEnd('/')
+            val built = request.url.build()
+            val path = built.encodedPath
+            val query = built.encodedQuery
+            request.url.takeFrom(base + path + if (query.isNotEmpty()) "?$query" else "")
+        }
+    }
 }
 
 fun createHttpClient(engine: HttpClientEngine, cookieStorage: CookiesStorage): HttpClient {
@@ -51,8 +74,10 @@ fun createHttpClient(engine: HttpClientEngine, cookieStorage: CookiesStorage): H
             connectTimeoutMillis = 15_000
             socketTimeoutMillis = 30_000
         }
+        // Resolve relative request paths against the current ApiConfig.BASE_URL
+        // on every request, so the environment can be switched at runtime.
+        install(dynamicBaseUrl)
         defaultRequest {
-            url(ApiConfig.BASE_URL)
             contentType(ContentType.Application.Json)
         }
     }

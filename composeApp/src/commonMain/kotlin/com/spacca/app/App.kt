@@ -5,6 +5,7 @@ import com.spacca.app.data.ApiService
 import com.spacca.app.data.BranchStore
 import com.spacca.app.data.CartStore
 import com.spacca.app.data.CatalogRepository
+import com.spacca.app.data.EnvironmentStore
 import com.spacca.app.data.SessionStore
 import com.spacca.app.data.cache.CacheStore
 import com.spacca.app.data.cache.PersistentCookiesStorage
@@ -22,6 +23,7 @@ val appModule = module {
     single { CacheStore(cacheDirectory()) }
     single { PersistentCookiesStorage(get()) }
     single { SessionStore(get()) }
+    single { EnvironmentStore(get()) }
     single { CartStore() }
     single { createHttpClient(createPlatformEngine(), get<PersistentCookiesStorage>()) }
     single { ApiService(get(), get<PersistentCookiesStorage>()) }
