@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -26,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.spacca.app.data.ApiService
 import com.spacca.app.data.pickImage
@@ -54,7 +56,9 @@ fun EditProfileScreen(
     val scope = rememberCoroutineScope()
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
-    var birthdate by remember { mutableStateOf("") }
+    var birthDay by remember { mutableStateOf("") }
+    var birthMonth by remember { mutableStateOf("") }
+    var birthYear by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("") }
     var city by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
@@ -71,7 +75,16 @@ fun EditProfileScreen(
             if (me != null) {
                 name = me.name ?: ""
                 email = me.email ?: ""
-                birthdate = me.birthdate ?: ""
+                // Backend stores birthdate as ISO "YYYY-MM-DD".
+                val bd = me.birthdate ?: ""
+                if (bd.isNotBlank()) {
+                    val parts = bd.split("-")
+                    if (parts.size == 3) {
+                        birthYear = parts[0]
+                        birthMonth = parts[1]
+                        birthDay = parts[2]
+                    }
+                }
                 gender = me.gender ?: ""
                 city = me.city ?: ""
                 address = me.address ?: ""
@@ -174,11 +187,32 @@ fun EditProfileScreen(
 
             DefaultText(text = "Birthdate", fontSize = 12, fontColor = LightGrey)
             Spacer(modifier = Modifier.height(6.dp))
-            DefaultTextField(
-                value = birthdate,
-                onValueChange = { birthdate = it },
-                placeholder = "DD/MM/YYYY"
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                DefaultTextField(
+                    value = birthDay,
+                    onValueChange = { birthDay = it.filter { c -> c.isDigit() }.take(2) },
+                    placeholder = "Day",
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f)
+                )
+                DefaultTextField(
+                    value = birthMonth,
+                    onValueChange = { birthMonth = it.filter { c -> c.isDigit() }.take(2) },
+                    placeholder = "Month",
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f)
+                )
+                DefaultTextField(
+                    value = birthYear,
+                    onValueChange = { birthYear = it.filter { c -> c.isDigit() }.take(4) },
+                    placeholder = "Year",
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1.5f)
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -186,7 +220,7 @@ fun EditProfileScreen(
             Spacer(modifier = Modifier.height(6.dp))
             GenderSelector(
                 selected = gender,
-                options = listOf("Male", "Female", "Other"),
+                options = listOf("Male", "Female"),
                 onSelect = { gender = it }
             )
 
@@ -219,11 +253,31 @@ fun EditProfileScreen(
                         saving = true
                         error = null
                         try {
+                            // Build birthdate as ISO "YYYY-MM-DD" from the three fields.
+                            val birthdate: String? = when {
+                                birthDay.isBlank() && birthMonth.isBlank() && birthYear.isBlank() -> null
+                                birthDay.isBlank() || birthMonth.isBlank() || birthYear.isBlank() -> {
+                                    error = "Enter a complete date of birth (day, month, year)"
+                                    null
+                                }
+                                else -> {
+                                    val d = birthDay.toIntOrNull()
+                                    val m = birthMonth.toIntOrNull()
+                                    val y = birthYear.toIntOrNull()
+                                    if (d == null || m == null || y == null || d !in 1..31 || m !in 1..12 || y !in 1900..2100) {
+                                        error = "Enter a valid date of birth"
+                                        null
+                                    } else {
+                                        "${y.toString().padStart(4, '0')}-${m.toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}"
+                                    }
+                                }
+                            }
+                            if (error != null) return@launch
                             api.updateProfile(
                                 UpdateProfileRequest(
                                     name = name.ifBlank { null },
                                     email = email.ifBlank { null },
-                                    birthdate = birthdate.ifBlank { null },
+                                    birthdate = birthdate,
                                     gender = gender.ifBlank { null },
                                     avatarUrl = avatarUrl?.ifBlank { null },
                                     city = city.ifBlank { null },
