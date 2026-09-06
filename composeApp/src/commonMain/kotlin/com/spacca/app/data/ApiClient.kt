@@ -6,11 +6,9 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.cookies.CookiesStorage
 import io.ktor.client.plugins.cookies.HttpCookies
-import io.ktor.client.plugins.api.createClientPlugin
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
-import io.ktor.http.takeFrom
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
@@ -27,29 +25,11 @@ object ApiConfig {
     const val VPS_URL = "https://31-97-157-159.sslip.io"
     const val DEFAULT_LOCAL_URL = "http://192.168.1.19:8080"
 
-    // Current base URL. This is a `var` so it can be switched at runtime; the
-    // Ktor client resolves it per-request (see dynamicBaseUrl plugin), so changes
-    // take effect immediately without recreating the client or restarting.
+    // Current base URL. This is a `var` so it can be switched at runtime. The
+    // Ktor client resolves it per-request (defaultRequest's block is re-invoked
+    // for every request and reads the current value), so changes take effect
+    // immediately without recreating the client or restarting.
     var BASE_URL = VPS_URL
-}
-
-/**
- * Resolves relative request URLs (e.g. "/api/mobile/...") against the *current*
- * [ApiConfig.BASE_URL] on every request. This lets the base URL be switched at
- * runtime (VPS <-> local) without recreating the HttpClient, because Ktor's
- * defaultRequest would otherwise capture the base URL only once at client
- * creation time.
- */
-private val dynamicBaseUrl = createClientPlugin("DynamicBaseUrl") {
-    onRequest { request, _ ->
-        if (request.url.host.isEmpty()) {
-            val base = ApiConfig.BASE_URL.trimEnd('/')
-            val built = request.url.build()
-            val path = built.encodedPath
-            val query = built.encodedQuery
-            request.url.takeFrom(base + path + if (query.isNotEmpty()) "?$query" else "")
-        }
-    }
 }
 
 fun createHttpClient(engine: HttpClientEngine, cookieStorage: CookiesStorage): HttpClient {
@@ -74,10 +54,12 @@ fun createHttpClient(engine: HttpClientEngine, cookieStorage: CookiesStorage): H
             connectTimeoutMillis = 15_000
             socketTimeoutMillis = 30_000
         }
-        // Resolve relative request paths against the current ApiConfig.BASE_URL
-        // on every request, so the environment can be switched at runtime.
-        install(dynamicBaseUrl)
+        // Resolve relative request paths against the CURRENT ApiConfig.BASE_URL.
+        // defaultRequest's block runs on every request and reads the mutable
+        // BASE_URL, so switching environments (VPS <-> local) takes effect
+        // immediately without recreating the client.
         defaultRequest {
+            url(ApiConfig.BASE_URL)
             contentType(ContentType.Application.Json)
         }
     }

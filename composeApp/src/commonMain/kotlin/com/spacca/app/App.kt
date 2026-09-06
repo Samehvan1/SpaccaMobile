@@ -17,6 +17,7 @@ import com.spacca.app.data.location.LocationStore
 import com.spacca.app.ui.navigation.AppNavHost
 import com.spacca.app.ui.theme.SpaccaTheme
 import org.koin.compose.KoinApplication
+import org.koin.compose.koinInject
 import org.koin.dsl.module
 
 val appModule = module {
@@ -38,6 +39,11 @@ fun App() {
     KoinApplication(application = {
         modules(appModule)
     }) {
+        // Eagerly create EnvironmentStore so the persisted API environment
+        // (VPS/local) is applied to ApiConfig.BASE_URL BEFORE any network
+        // request happens. Without this, the first requests would use the
+        // default VPS until the user opens the "More" screen.
+        koinInject<EnvironmentStore>()
         SpaccaTheme {
             AppNavHost()
         }
