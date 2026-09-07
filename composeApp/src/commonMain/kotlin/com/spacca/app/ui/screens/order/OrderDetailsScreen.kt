@@ -39,6 +39,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.spacca.app.util.formatPrice
 import com.spacca.app.data.ApiService
+import com.spacca.app.data.CartLine
+import com.spacca.app.data.CartStore
+import com.spacca.app.data.model.DrinkSelection
+import com.spacca.app.data.model.OrderCustomization
 import com.spacca.app.data.model.OrderDetail
 import com.spacca.app.ui.components.ButtonVariant
 import com.spacca.app.ui.components.DefaultButton
@@ -60,9 +64,11 @@ import org.koin.compose.koinInject
 fun OrderDetailsScreen(
     orderId: Int,
     onBack: () -> Unit,
-    onCancelled: () -> Unit = {}
+    onCancelled: () -> Unit = {},
+    onReorder: () -> Unit = {}
 ) {
     val api = koinInject<ApiService>()
+    val cartStore = koinInject<CartStore>()
     val scope = rememberCoroutineScope()
     var order by remember { mutableStateOf<OrderDetail?>(null) }
     var loading by remember { mutableStateOf(true) }
@@ -251,7 +257,40 @@ fun OrderDetailsScreen(
                         }
                         DefaultButton(
                             text = "Reorder",
-                            onClick = { },
+                            onClick = {
+                                // Re-add every item from this order to the cart,
+                                // preserving customizations and special notes, then
+                                // hand off to the cart for review/checkout.
+                                o.items?.forEach { item ->
+                                    cartStore.add(
+                                        CartLine(
+                                            id = 0,
+                                            drinkId = item.drinkId ?: 0,
+                                            name = item.drinkName ?: "Item",
+                                            quantity = item.quantity ?: 1,
+                                            unitPrice = item.unitPrice ?: 0.0,
+                                            selections = item.customizations
+                                                ?.mapNotNull { c ->
+                                                    if (c.ingredientId == null && c.optionId == null && c.typeVolumeId == null) {
+                                                        null
+                                                    } else {
+                                                        DrinkSelection(
+                                                            slotId = null,
+                                                            optionId = c.optionId,
+                                                            typeVolumeId = c.typeVolumeId,
+                                                            ingredientTypeId = null,
+                                                            ingredientId = c.ingredientId
+                                                        )
+                                                    }
+                                                }
+                                                ?: emptyList(),
+                                            customizationSummary = reorderSummary(item.customizations),
+                                            specialNotes = item.specialNotes
+                                        )
+                                    )
+                                }
+                                onReorder()
+                            },
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -384,4 +423,16 @@ private fun OrderItemLine(name: String, price: String) {
         DefaultText(text = name, fontSize = 14, modifier = Modifier.weight(1f))
         DefaultText(text = price, fontSize = 14, fontColor = LightGrey)
     }
+}
+
+// Build a human-readable summary of the order's customizations, e.g.
+// "Coffee: Ethiobian · Triple" joined by ", " (mirrors CustomizationScreen).
+private fun reorderSummary(customizations: List<OrderCustomization>?): String? {
+    if (customizations.isNullOrEmpty()) return null
+    val parts = customizations.mapNotNull { c ->
+        val label = c.slotLabel ?: return@mapNotNull null
+        val value = c.optionLabel ?: return@mapNotNull null
+        "$label: $value"
+    }
+    return if (parts.isEmpty()) null else parts.joinToString(", ")
 }

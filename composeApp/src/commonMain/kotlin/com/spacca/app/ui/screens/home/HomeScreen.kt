@@ -127,6 +127,7 @@ fun HomeScreen(
     onViewAllCategories: () -> Unit = {},
     onViewAllFavorites: () -> Unit = {},
     onViewAllSaved: () -> Unit = {},
+    onShowPoints: () -> Unit = {},
     onProductClick: (HomeProduct) -> Unit = {}
 ) {
     val api = koinInject<ApiService>()
@@ -243,7 +244,7 @@ fun HomeScreen(
             }
 
             item {
-                PointsBanner(points = points ?: 0)
+                PointsBanner(points = points ?: 0, onShowPoints = onShowPoints)
             }
 
             item {
@@ -510,7 +511,7 @@ private fun CategoryChip(
 // PointsBanner
 // ---------------------------------------------------------------------------
 @Composable
-private fun PointsBanner(points: Int) {
+private fun PointsBanner(points: Int, onShowPoints: () -> Unit = {}) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -538,7 +539,8 @@ private fun PointsBanner(points: Int) {
             modifier = Modifier
                 .size(width = 80.dp, height = 30.dp)
                 .clip(RoundedCornerShape(5.dp))
-                .background(White),
+                .background(White)
+                .clickableNoRipple(onClick = onShowPoints),
             contentAlignment = Alignment.Center
         ) {
             DefaultText(

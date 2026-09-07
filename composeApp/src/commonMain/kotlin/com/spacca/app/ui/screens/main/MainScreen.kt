@@ -72,6 +72,7 @@ fun MainScreen(
                     onViewAllCategories = { currentTab = BottomTab.CATEGORIES },
                     onViewAllFavorites = onFavorites,
                     onViewAllSaved = onSavedDrinks,
+                    onShowPoints = onPoints,
                     onProductClick = onProductClick
                 )
                 BottomTab.CATEGORIES -> CategoriesScreen(

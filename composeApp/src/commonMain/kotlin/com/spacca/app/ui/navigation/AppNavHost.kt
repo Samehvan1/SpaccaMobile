@@ -411,7 +411,8 @@ fun AppNavHost() {
             OrderDetailsScreen(
                 orderId = orderId,
                 onBack = { navController.popBackStack() },
-                onCancelled = { navController.popBackStack() }
+                onCancelled = { navController.popBackStack() },
+                onReorder = { navController.navigate(Routes.CART) }
             )
         }
 
