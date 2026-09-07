@@ -140,7 +140,8 @@ fun ProductDetailsScreen(
                     ) {
                         DefaultText(
                             text = drink.name ?: "Product",
-                            fontSize = 20,
+                            fontSize = 17,
+                            lineHeight = 22,
                             fontWeight = FontWeight.Bold,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,

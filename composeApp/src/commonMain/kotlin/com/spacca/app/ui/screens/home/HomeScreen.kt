@@ -28,7 +28,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -56,6 +58,7 @@ import com.spacca.app.data.location.LocationStore
 import com.spacca.app.data.location.LocationStatus
 import com.spacca.app.data.location.nearestBranch
 import com.spacca.app.data.model.DrinkCategory
+import com.spacca.app.data.model.Branch
 import com.spacca.app.data.model.Favorite
 import com.spacca.app.data.model.HomeProduct
 import com.spacca.app.data.model.HomeSliderItem
@@ -135,8 +138,8 @@ fun HomeScreen(
     var avatarUrl by remember { mutableStateOf<String?>(null) }
     var savedDrinks by remember { mutableStateOf<List<SavedDrink>>(emptyList()) }
     var slider by remember { mutableStateOf<List<HomeSliderItem>>(fallbackSlider) }
-    var featured by remember { mutableStateOf<List<HomeProduct>>(fallbackFeatured) }
-    var offers by remember { mutableStateOf<List<HomeProduct>>(fallbackOffers) }
+    var featured by remember { mutableStateOf<List<HomeProduct>?>(null) }
+    var offers by remember { mutableStateOf<List<HomeProduct>?>(null) }
     var favorites by remember { mutableStateOf<List<Favorite>>(emptyList()) }
 
     // Current location + branches for the nearest-branch pickup display.
@@ -146,11 +149,17 @@ fun HomeScreen(
     val locationStatus by locationStore.status.collectAsState()
     val branches by branchStore.branches.collectAsState()
     val nearest = currentLocation?.let { nearestBranch(branches, it) }
-    val pickupText = when {
-        nearest != null -> nearest.name ?: "Cairo"
-        locationStatus == LocationStatus.LOCATING -> "Locating..."
-        else -> "Cairo"
-    }
+
+    // User-selected pickup branch (overrides the nearest branch once chosen).
+    var selectedBranchName by remember { mutableStateOf<String?>(null) }
+    var showBranchPicker by remember { mutableStateOf(false) }
+
+    val pickupText = selectedBranchName
+        ?: when {
+            nearest != null -> nearest.name ?: "Cairo"
+            locationStatus == LocationStatus.LOCATING -> "Locating..."
+            else -> "Cairo"
+        }
 
     fun loadData() {
         scope.launch {
@@ -187,17 +196,17 @@ fun HomeScreen(
             } catch (_: Exception) {
                 // keep fallbackSlider
             }
+            // Featured/Offers: use the backend result as-is (an empty list hides the
+            // section); fall back to static data only when the request fails.
             try {
-                val remote = api.featuredProducts()
-                if (remote.isNotEmpty()) featured = remote
+                featured = api.featuredProducts()
             } catch (_: Exception) {
-                // keep fallbackFeatured
+                featured = fallbackFeatured
             }
             try {
-                val remote = api.offers()
-                if (remote.isNotEmpty()) offers = remote
+                offers = api.offers()
             } catch (_: Exception) {
-                // keep fallbackOffers
+                offers = fallbackOffers
             }
         }
     }
@@ -211,7 +220,13 @@ fun HomeScreen(
             .fillMaxSize()
             .background(BackgroundPrimary)
     ) {
-        HomeTopBar(onSearchClick = onSearchClick, onProfileClick = onProfileClick, pickupLocation = pickupText, avatarUrl = avatarUrl)
+        HomeTopBar(
+            onSearchClick = onSearchClick,
+            onProfileClick = onProfileClick,
+            onPickupClick = { showBranchPicker = true },
+            pickupLocation = pickupText,
+            avatarUrl = avatarUrl
+        )
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -255,12 +270,12 @@ fun HomeScreen(
                 }
             }
 
-            // Featured products: shown only when there is at least one.
-            if (featured.isNotEmpty()) {
+            // Featured products: shown only when the backend returns at least one.
+            featured?.takeIf { it.isNotEmpty() }?.let { list ->
                 item {
                     ProductSection(
                         title = "Featured",
-                        products = featured,
+                        products = list,
                         showPrice = true,
                         onViewAll = onViewAllCategories,
                         onProductClick = onProductClick
@@ -268,12 +283,12 @@ fun HomeScreen(
                 }
             }
 
-            // Offers: shown only when there is at least one offer.
-            if (offers.isNotEmpty()) {
+            // Offers: shown only when the backend returns at least one offer.
+            offers?.takeIf { it.isNotEmpty() }?.let { list ->
                 item {
                     ProductSection(
                         title = "Offers",
-                        products = offers,
+                        products = list,
                         showPrice = true,
                         showOriginalPrice = true,
                         onViewAll = onViewAllCategories,
@@ -290,17 +305,29 @@ fun HomeScreen(
             }
         }
     }
+
+    if (showBranchPicker) {
+        BranchPickerDialog(
+            branches = branches,
+            current = pickupText,
+            onDismiss = { showBranchPicker = false },
+            onSelect = { branch ->
+                selectedBranchName = branch.name ?: pickupText
+                showBranchPicker = false
+            }
+        )
+    }
 }
 
 // ---------------------------------------------------------------------------
 // HomeTopBar
 // ---------------------------------------------------------------------------
 @Composable
-private fun HomeTopBar(onSearchClick: () -> Unit, onProfileClick: () -> Unit, pickupLocation: String, avatarUrl: String?) {
+private fun HomeTopBar(onSearchClick: () -> Unit, onProfileClick: () -> Unit, onPickupClick: () -> Unit, pickupLocation: String, avatarUrl: String?) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(120.dp)
+            .height(100.dp)
             .background(BackgroundPrimary)
     ) {
         Image(
@@ -313,7 +340,7 @@ private fun HomeTopBar(onSearchClick: () -> Unit, onProfileClick: () -> Unit, pi
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically)
+            verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -358,7 +385,8 @@ private fun HomeTopBar(onSearchClick: () -> Unit, onProfileClick: () -> Unit, pi
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.clickableNoRipple(onClick = onPickupClick)
                 ) {
                     DefaultText(
                         text = "Pickup from",
@@ -446,12 +474,12 @@ private fun CategoryChip(
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier.clickableNoRipple(onClick = onClick)
     ) {
         Box(
             modifier = Modifier
-                .size(65.dp)
+                .size(55.dp)
                 .clip(CircleShape)
                 .border(
                     width = 1.dp,
@@ -465,7 +493,7 @@ private fun CategoryChip(
                 painter = painterResource(Res.drawable.ic_category_placeholder),
                 contentDescription = name,
                 contentScale = ContentScale.Inside,
-                modifier = Modifier.size(45.dp)
+                modifier = Modifier.size(38.dp)
             )
         }
         DefaultText(
@@ -646,11 +674,11 @@ private fun SectionCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 16.dp, vertical = 4.dp)
             .clip(RoundedCornerShape(16.dp))
             .border(1.dp, SectionBorder, RoundedCornerShape(16.dp))
             .background(SectionBackground)
-            .padding(vertical = 16.dp)
+            .padding(vertical = 12.dp)
     ) {
         Row(
             modifier = Modifier
@@ -768,4 +796,92 @@ private fun SavedDrinksSection(savedDrinks: List<SavedDrink>, onViewAll: () -> U
             }
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// BranchPickerDialog - lets the customer choose their pickup branch
+// ---------------------------------------------------------------------------
+@Composable
+private fun BranchPickerDialog(
+    branches: List<Branch>,
+    current: String,
+    onDismiss: () -> Unit,
+    onSelect: (Branch) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = BackgroundSecondary,
+        title = {
+            DefaultText(
+                text = "Choose pickup branch",
+                fontSize = 18,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            if (branches.isEmpty()) {
+                DefaultText(
+                    text = "No branches available",
+                    fontSize = 13,
+                    fontColor = LightGrey
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.height(280.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(branches) { branch ->
+                        val isSelected = branch.name == current
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) DarkBorder else BackgroundPrimary)
+                                .border(
+                                    width = 1.dp,
+                                    color = if (isSelected) AccentGreen else DarkBorder,
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .clickableNoRipple { onSelect(branch) }
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                DefaultText(
+                                    text = branch.name ?: "Branch",
+                                    fontSize = 14,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                if (!branch.address.isNullOrBlank()) {
+                                    DefaultText(
+                                        text = branch.address,
+                                        fontSize = 12,
+                                        fontColor = LightGrey,
+                                        lineHeight = 16
+                                    )
+                                }
+                            }
+                            if (isSelected) {
+                                DefaultText(
+                                    text = "✓",
+                                    fontSize = 16,
+                                    fontWeight = FontWeight.Bold,
+                                    fontColor = AccentGreen
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                DefaultText(
+                    text = "Cancel",
+                    fontSize = 14,
+                    fontColor = AccentGreen
+                )
+            }
+        }
+    )
 }

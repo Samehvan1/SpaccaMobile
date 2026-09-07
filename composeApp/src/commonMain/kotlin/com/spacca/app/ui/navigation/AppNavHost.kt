@@ -15,8 +15,6 @@ import com.spacca.app.data.SessionStore
 import com.spacca.app.data.model.CategoryProduct
 import com.spacca.app.data.model.DrinkCategory
 import com.spacca.app.data.model.DrinkDetail
-import com.spacca.app.data.model.OrderItem
-import com.spacca.app.data.model.PlaceOrderRequest
 import com.spacca.app.ui.screens.auth.ConfirmPinScreen
 import com.spacca.app.ui.screens.auth.LoginPinScreen
 import com.spacca.app.ui.screens.auth.LoginScreen
@@ -255,7 +253,8 @@ fun AppNavHost() {
                     navController.navigate(
                         "${Routes.PRODUCT}?drinkId=${product.id}&name=${product.name ?: ""}&price=${product.price ?: 0.0}&customizable=${product.isCustomizable ?: false}&imageUrl=${product.imageUrl ?: ""}"
                     )
-                }
+                },
+                onCartClick = { navController.navigate(Routes.CART) }
             )
         }
         composable("${Routes.PRODUCT}?drinkId={drinkId}&name={name}&price={price}&customizable={customizable}&imageUrl={imageUrl}") { backStackEntry ->
@@ -377,48 +376,18 @@ fun AppNavHost() {
             val branchId = backStackEntry.arguments?.read { getStringOrNull("branchId") }?.toIntOrNull() ?: 0
             val payment = backStackEntry.arguments?.read { getStringOrNull("payment") } ?: "Cash"
             val pickupTime = backStackEntry.arguments?.read { getStringOrNull("pickupTime") }
-            val scope = androidx.compose.runtime.rememberCoroutineScope()
-            val cartStore = koinInject<CartStore>()
-            val api = koinInject<com.spacca.app.data.ApiService>()
             OrderSummaryScreen(
                 onBack = { navController.popBackStack() },
+                branchId = branchId,
+                payment = payment,
                 onError = { message ->
                     // Surface the failure instead of silently navigating to a
                     // fake confirmation. Pop back to checkout so the user can retry.
                     navController.popBackStack()
                 },
-                onConfirm = { discountCode ->
-                    // Place order via ApiService
-                    scope.launch {
-                        try {
-                            val items = cartStore.lines.value.map {
-                                OrderItem(
-                                    drinkId = it.drinkId,
-                                    quantity = it.quantity,
-                                    selections = it.selections.ifEmpty { null },
-                                    specialNotes = it.specialNotes
-                                )
-                            }
-                            val order = api.placeOrder(
-                                PlaceOrderRequest(
-                                    branchId = branchId,
-                                    items = items,
-                                    paymentMethod = payment,
-                                    discountCode = discountCode
-                                )
-                            )
-                            if (order != null) {
-                                cartStore.clear()
-                                val orderNumber = order.orderNumber ?: "0000"
-                                navController.navigate("${Routes.ORDER_CONFIRMATION}?orderNumber=$orderNumber") {
-                                    popUpTo(Routes.MAIN)
-                                }
-                            } else {
-                                navController.popBackStack()
-                            }
-                        } catch (e: Exception) {
-                            navController.popBackStack()
-                        }
+                onSuccess = { orderNumber ->
+                    navController.navigate("${Routes.ORDER_CONFIRMATION}?orderNumber=$orderNumber") {
+                        popUpTo(Routes.MAIN)
                     }
                 }
             )

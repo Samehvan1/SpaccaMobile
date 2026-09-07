@@ -87,6 +87,7 @@ fun CustomizationScreen(
     var slots by remember { mutableStateOf<List<DrinkSlot>>(emptyList()) }
     var cupSizeMl by remember { mutableStateOf<Int?>(null) }
     var productImage by remember { mutableStateOf<String?>(null) }
+    var drinkCategory by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(true) }
     var loadError by remember { mutableStateOf(false) }
     var quantity by remember { mutableStateOf(initialQty.coerceAtLeast(1)) }
@@ -103,6 +104,7 @@ fun CustomizationScreen(
                 slots = recipe
                 cupSizeMl = detail.drink?.cupSizeMl
                 productImage = detail.drink?.imageUrl
+                drinkCategory = detail.drink?.category
                 // Initialize defaults for each slot
                 recipe.forEach { slot ->
                     val def = defaultSelection(slot)
@@ -160,17 +162,18 @@ fun CustomizationScreen(
         Column(
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp)
         ) {
-            DefaultText(
-                text = name,
-                fontSize = 20,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            DefaultText(
-                text = "Base EGP ${price.formatPrice()}",
-                fontSize = 13,
-                fontColor = MediumGrey
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                DefaultText(
+                    text = name,
+                    fontSize = 20,
+                    fontWeight = FontWeight.Bold
+                )
+                DefaultText(
+                    text = " (Base EGP ${price.formatPrice()})",
+                    fontSize = 13,
+                    fontColor = AccentGreen
+                )
+            }
 
             Spacer(modifier = Modifier.height(20.dp))
 
@@ -180,7 +183,8 @@ fun CustomizationScreen(
                     CupSimulatorSection(
                         slots = visibleSlots,
                         selections = selections,
-                        cupSizeMl = cupSizeMl
+                        cupSizeMl = cupSizeMl,
+                        showSmoke = drinkCategory?.contains("Hot", ignoreCase = true) == true
                     )
                     Spacer(modifier = Modifier.height(20.dp))
                 }
@@ -387,7 +391,7 @@ private fun SlotSection(
                 slot.typeOptions.forEach { typeOpt ->
                     val selectedType = selection?.ingredientTypeId == typeOpt.ingredientTypeId
                     ChoiceChip(
-                        text = typeOpt.typeName ?: "Option",
+                        text = typeOptionLabel(typeOpt),
                         selected = selectedType,
                         onClick = {
                             // Select the type option. If it has volumes, also pick the
@@ -422,6 +426,7 @@ private fun SlotSection(
                         ChoiceChip(
                             text = volumeLabel(vol),
                             selected = selection?.typeVolumeId == vol.typeVolumeId,
+                            fontSize = 11,
                             onClick = {
                                 if (vol.typeVolumeId != null) {
                                     onSelect(
@@ -446,7 +451,7 @@ private fun SlotSection(
             ) {
                 slot.options.forEach { opt ->
                     ChoiceChip(
-                        text = opt.label ?: "Option",
+                        text = legacyOptionLabel(opt),
                         selected = selection?.optionId == opt.optionId,
                         onClick = {
                             if (opt.optionId != null) {
@@ -470,7 +475,8 @@ private fun SlotSection(
 private fun ChoiceChip(
     text: String,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    fontSize: Int = 13
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val scale = remember { Animatable(1f) }
@@ -516,7 +522,7 @@ private fun ChoiceChip(
     ) {
         DefaultText(
             text = text,
-            fontSize = 13,
+            fontSize = fontSize,
             fontColor = if (selected) BackgroundPrimary else White,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
         )
@@ -599,7 +605,17 @@ private fun extraCost(slot: DrinkSlot, selection: DrinkSelection?): Double {
 
 private fun volumeLabel(vol: DrinkSlotVolume): String {
     val cost = vol.extraCost ?: 0.0
-    return if (cost > 0) "${vol.volumeName ?: ""} +${cost.formatWhole()}" else (vol.volumeName ?: "")
+    return if (cost > 0) "${vol.volumeName ?: ""} (+${cost.formatWhole()})" else (vol.volumeName ?: "")
+}
+
+private fun typeOptionLabel(typeOpt: DrinkSlotTypeOption): String {
+    val cost = typeOpt.extraCost ?: 0.0
+    return if (cost > 0) "${typeOpt.typeName ?: "Option"} (+${cost.formatWhole()})" else (typeOpt.typeName ?: "Option")
+}
+
+private fun legacyOptionLabel(opt: DrinkSlotOption): String {
+    val cost = opt.extraCost ?: 0.0
+    return if (cost > 0) "${opt.label ?: "Option"} (+${cost.formatWhole()})" else (opt.label ?: "Option")
 }
 
 // Two-column section: ingredient summary (left) + 3D cup simulator (right).
@@ -607,7 +623,8 @@ private fun volumeLabel(vol: DrinkSlotVolume): String {
 private fun CupSimulatorSection(
     slots: List<DrinkSlot>,
     selections: Map<Int, DrinkSelection>,
-    cupSizeMl: Int? = null
+    cupSizeMl: Int? = null,
+    showSmoke: Boolean = true
 ) {
     val layers = buildCupLayers(slots, selections, cupSizeMl)
 
@@ -635,9 +652,10 @@ private fun CupSimulatorSection(
             CupSimulator(
                 layers = layers,
                 cupSizeMl = cupSizeMl,
+                showSmoke = showSmoke,
                 modifier = Modifier
                     .weight(0.65f)
-                    .height(200.dp)
+                    .height(180.dp)
             )
         }
     }

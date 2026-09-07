@@ -218,33 +218,37 @@ fun OrderDetailsScreen(
                         subvalue = null
                     )
 
-                    Spacer(modifier = Modifier.weight(1f))
+                    Spacer(modifier = Modifier.height(24.dp))
 
-                    // Action buttons
+                    // Action buttons — placed right after the details cards so they
+                    // are fully visible without scrolling to the bottom.
+                    val isPending = o.status?.lowercase() == "pending"
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 24.dp, bottom = 8.dp),
+                            .padding(bottom = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        DefaultButton(
-                            text = if (cancelling) "Cancelling..." else "Cancel Order",
-                            onClick = {
-                                scope.launch {
-                                    cancelling = true
-                                    try {
-                                        api.cancelOrder(orderId)
-                                        onCancelled()
-                                    } catch (e: Exception) {
-                                        error = e.message ?: "Could not cancel order"
-                                    } finally {
-                                        cancelling = false
+                        if (isPending) {
+                            DefaultButton(
+                                text = if (cancelling) "Cancelling..." else "Cancel Order",
+                                onClick = {
+                                    scope.launch {
+                                        cancelling = true
+                                        try {
+                                            api.cancelOrder(orderId)
+                                            onCancelled()
+                                        } catch (e: Exception) {
+                                            error = e.message ?: "Could not cancel order"
+                                        } finally {
+                                            cancelling = false
+                                        }
                                     }
-                                }
-                            },
-                            variant = ButtonVariant.DESTRUCTIVE,
-                            modifier = Modifier.weight(1f)
-                        )
+                                },
+                                variant = ButtonVariant.DESTRUCTIVE,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                         DefaultButton(
                             text = "Reorder",
                             onClick = { },

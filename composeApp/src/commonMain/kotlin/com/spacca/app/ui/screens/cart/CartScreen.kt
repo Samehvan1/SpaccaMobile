@@ -10,12 +10,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -108,12 +111,13 @@ fun CartScreen(
                             fontColor = AccentGreen,
                             modifier = Modifier.padding(start = 12.dp)
                         )
-                        DefaultText(
-                            text = "✕",
-                            fontSize = 14,
-                            fontColor = Red,
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = "Remove ${item.name}",
+                            tint = Red,
                             modifier = Modifier
                                 .padding(start = 12.dp)
+                                .size(22.dp)
                                 .clickableNoRipple { cartStore.remove(item.id) }
                         )
                     }

@@ -279,7 +279,8 @@ private fun generateBubbles(count: Int, seed: Int = 0): List<BubbleData> {
 fun CupSimulator(
     layers: List<CupLayer>,
     modifier: Modifier = Modifier,
-    cupSizeMl: Int? = null
+    cupSizeMl: Int? = null,
+    showSmoke: Boolean = true
 ) {
     val infiniteTransition = rememberInfiniteTransition()
     val textMeasurer = rememberTextMeasurer()
@@ -597,7 +598,7 @@ fun CupSimulator(
         drawContext.canvas.restore()
 
         // Steam wisps rising above the liquid surface (hot drinks)
-        if (steamWisps.isNotEmpty() && totalVol > 0f) {
+        if (showSmoke && steamWisps.isNotEmpty() && totalVol > 0f) {
             val surfY = cupBottomY - cupHeight * fillFraction
             val surfR = bottomHalfW + (topHalfW - bottomHalfW) * fillFraction
 
@@ -736,7 +737,7 @@ fun IngredientSummary(
     modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = modifier.heightIn(max = 200.dp),
+        modifier = modifier.heightIn(max = 180.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         slots.filter { (it.customerSortOrder ?: 1) > 0 }.forEach { slot ->

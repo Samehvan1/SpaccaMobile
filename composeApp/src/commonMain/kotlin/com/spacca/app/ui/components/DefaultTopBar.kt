@@ -29,7 +29,8 @@ fun DefaultTopBar(
     title: String,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    showBack: Boolean = true
+    showBack: Boolean = true,
+    trailingContent: (@Composable () -> Unit)? = null
 ) {
     Box(
         modifier = modifier
@@ -57,5 +58,13 @@ fun DefaultTopBar(
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.align(Alignment.Center)
         )
+        if (trailingContent != null) {
+            Box(
+                modifier = Modifier.align(Alignment.CenterEnd),
+                contentAlignment = Alignment.Center
+            ) {
+                trailingContent()
+            }
+        }
     }
 }

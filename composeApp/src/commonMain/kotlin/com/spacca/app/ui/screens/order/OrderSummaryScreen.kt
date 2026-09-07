@@ -32,6 +32,8 @@ import com.spacca.app.util.formatPrice
 import com.spacca.app.data.ApiService
 import com.spacca.app.data.CartStore
 import com.spacca.app.data.model.Discount
+import com.spacca.app.data.model.OrderItem
+import com.spacca.app.data.model.PlaceOrderRequest
 import com.spacca.app.ui.components.DefaultButton
 import com.spacca.app.ui.components.DefaultText
 import com.spacca.app.ui.components.DefaultTextField
@@ -50,7 +52,9 @@ import org.koin.compose.koinInject
 @Composable
 fun OrderSummaryScreen(
     onBack: () -> Unit,
-    onConfirm: (discountCode: String?) -> Unit,
+    branchId: Int,
+    payment: String,
+    onSuccess: (orderNumber: String) -> Unit,
     onError: (String) -> Unit = {}
 ) {
     val cartStore = koinInject<CartStore>()
@@ -58,8 +62,16 @@ fun OrderSummaryScreen(
     val scope = rememberCoroutineScope()
     val lineItems by cartStore.lines.collectAsState()
 
-    val subtotal = lineItems.sumOf { it.unitPrice * it.quantity }
+    // Products are tax-inclusive (14% VAT). Breakdown per product spec:
+    //   totalPrice    = sum of product prices (tax-inclusive)
+    //   beforeTax     = totalPrice / 1.14
+    //   taxAmount     = totalPrice - beforeTax
+    //   afterDiscount = beforeTax - discountAmount
+    //   total         = afterDiscount + taxAmount  (= totalPrice - discountAmount)
+    val totalPrice = lineItems.sumOf { it.unitPrice * it.quantity }
     val totalItemCount = lineItems.sumOf { it.quantity }
+    val beforeTax = totalPrice / 1.14
+    val taxAmount = totalPrice - beforeTax
 
     // Available discounts (customer-linked) + discount code state.
     var availableDiscounts by remember { mutableStateOf<List<Discount>>(emptyList()) }
@@ -67,6 +79,11 @@ fun OrderSummaryScreen(
     var appliedDiscount by remember { mutableStateOf<Discount?>(null) }
     var discountError by remember { mutableStateOf<String?>(null) }
     var applying by remember { mutableStateOf(false) }
+
+    // Guards against duplicate order submission: while a placeOrder request is
+    // in flight the button is disabled, so a slow connection can't cause the
+    // same order to be sent to the cashier twice.
+    var isPlacing by remember { mutableStateOf(false) }
 
     // Load the customer's available discounts once. The backend auto-applies the
     // customer's linked discount (e.g. STAFF50), so surface it here as the default.
@@ -81,21 +98,22 @@ fun OrderSummaryScreen(
 
     // Local discount preview (the backend computes the authoritative value).
     // Products are tax-inclusive (14% VAT); discounts are NOT tax-included, so
-    // percentage discounts are computed on the ex-tax (net) subtotal unless the
-    // discount is explicitly marked taxable. Fixed discounts are already net values.
-    val discountAmount = remember(appliedDiscount, subtotal, totalItemCount) {
+    // percentage discounts are computed on the ex-tax (net) base (beforeTax)
+    // unless the discount is explicitly marked taxable. Fixed discounts are
+    // already net values and are capped at the tax-inclusive total.
+    val discountAmount = remember(appliedDiscount, beforeTax, totalItemCount) {
         val d = appliedDiscount ?: return@remember 0.0
         val isTaxable = d.isTaxable ?: false
-        val baseForCalc = if (isTaxable) subtotal else subtotal / 1.14
+        val baseForCalc = if (isTaxable) totalPrice else beforeTax
         when (d.type) {
             "percentage" -> baseForCalc * (d.value ?: 0.0) / 100
-            "fixed" -> minOf(d.value ?: 0.0, subtotal)
-            "fixed_per_item" -> minOf((d.value ?: 0.0) * totalItemCount, subtotal)
+            "fixed" -> minOf(d.value ?: 0.0, totalPrice)
+            "fixed_per_item" -> minOf((d.value ?: 0.0) * totalItemCount, totalPrice)
             else -> 0.0
         }
     }
-    val taxes = subtotal * 0.14
-    val total = subtotal + taxes - discountAmount
+    val afterDiscount = beforeTax - discountAmount
+    val total = afterDiscount + taxAmount
 
     fun applyCode() {
         val code = discountCode.trim()
@@ -240,9 +258,9 @@ fun OrderSummaryScreen(
                     .background(DarkBorder)
                     .padding(14.dp)
             ) {
-                SummaryRow(label = "Subtotal", value = "EGP ${subtotal.formatPrice()}")
+                SummaryRow(label = "Subtotal", value = "EGP ${totalPrice.formatPrice()}")
                 Spacer(modifier = Modifier.height(8.dp))
-                SummaryRow(label = "Taxes (14%)", value = "EGP ${taxes.formatPrice()}")
+                SummaryRow(label = "Taxes (14%)", value = "EGP ${taxAmount.formatPrice()}")
                 Spacer(modifier = Modifier.height(8.dp))
                 SummaryRow(label = "Discount", value = "- EGP ${discountAmount.formatPrice()}", valueColor = AccentGreen)
 
@@ -283,8 +301,42 @@ fun OrderSummaryScreen(
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
             DefaultButton(
-                text = "Pay & Place order",
-                onClick = { onConfirm(discountCode.trim().ifEmpty { null }) }
+                text = if (isPlacing) "Placing order..." else "Pay & Place order",
+                onClick = {
+                    if (isPlacing) return@DefaultButton
+                    isPlacing = true
+                    scope.launch {
+                        try {
+                            val items = cartStore.lines.value.map {
+                                OrderItem(
+                                    drinkId = it.drinkId,
+                                    quantity = it.quantity,
+                                    selections = it.selections.ifEmpty { null },
+                                    specialNotes = it.specialNotes
+                                )
+                            }
+                            val order = api.placeOrder(
+                                PlaceOrderRequest(
+                                    branchId = branchId,
+                                    items = items,
+                                    paymentMethod = payment,
+                                    discountCode = discountCode.trim().ifEmpty { null }
+                                )
+                            )
+                            if (order != null) {
+                                cartStore.clear()
+                                onSuccess(order.orderNumber ?: "0000")
+                            } else {
+                                onError("Could not place order")
+                            }
+                        } catch (e: Exception) {
+                            onError(e.message ?: "Could not place order")
+                        } finally {
+                            isPlacing = false
+                        }
+                    }
+                },
+                enabled = !isPlacing
             )
         }
     }

@@ -25,7 +25,7 @@ val appModule = module {
     single { PersistentCookiesStorage(get()) }
     single { SessionStore(get()) }
     single { EnvironmentStore(get()) }
-    single { CartStore() }
+    single { CartStore(get()) }
     single { createHttpClient(createPlatformEngine(), get<PersistentCookiesStorage>()) }
     single { ApiService(get(), get<PersistentCookiesStorage>()) }
     single { CatalogRepository(get(), get()) }

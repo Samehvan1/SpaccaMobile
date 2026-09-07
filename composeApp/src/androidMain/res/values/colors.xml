@@ -2,4 +2,5 @@
 <resources>
     <color name="spacca_background">#232222</color>
     <color name="spacca_accent">#BDE096</color>
+    <color name="ic_launcher_background">#141414</color>
 </resources>

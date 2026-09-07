@@ -23,7 +23,7 @@ object ApiConfig {
     // base path. So keep the base URL WITHOUT a path suffix and include the full
     // path (e.g. "/api/mobile/...") in each ApiService request.
     const val VPS_URL = "https://31-97-157-159.sslip.io"
-    const val DEFAULT_LOCAL_URL = "http://192.168.1.19:8080"
+    const val DEFAULT_LOCAL_URL = "http://127.0.0.1:8080"
 
     // Current base URL. This is a `var` so it can be switched at runtime. The
     // Ktor client resolves it per-request (defaultRequest's block is re-invoked
