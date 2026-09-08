@@ -60,7 +60,8 @@ data class CupLayer(
     val volumeMl: Float,
     val color: Color,
     val category: String,
-    val isDynamic: Boolean = false
+    val isDynamic: Boolean = false,
+    val slotId: Int? = null
 )
 
 // ============================================================
@@ -148,7 +149,8 @@ fun buildCupLayers(
                     volumeMl = volumeMl,
                     color = CupColorResolver.resolve(typeName, cat),
                     category = cat,
-                    isDynamic = isDynamic
+                    isDynamic = isDynamic,
+                    slotId = slot.slotId
                 )
             )
         } else {
@@ -163,7 +165,8 @@ fun buildCupLayers(
                     label = optLabel,
                     volumeMl = volumeMl,
                     color = CupColorResolver.resolve(optLabel, cat),
-                    category = cat
+                    category = cat,
+                    slotId = slot.slotId
                 )
             )
         }

@@ -245,17 +245,20 @@ data class DrinkSlotVolume(
     @SerialName("extraCost") val extraCost: Double? = null,
     @SerialName("isDefault") val isDefault: Boolean? = null,
     @SerialName("isAvailable") val isAvailable: Boolean? = null,
-    @SerialName("processedQty") val processedQty: Float? = null
+    @SerialName("processedQty") val processedQty: Float? = null,
+    @SerialName("producedQty") val producedQty: Float? = null
 )
 
 @Serializable
 data class DrinkSlotTypeOption(
     @SerialName("typeOptionId") val typeOptionId: Int? = null,
     @SerialName("ingredientTypeId") val ingredientTypeId: Int? = null,
+    @SerialName("inventoryIngredientId") val inventoryIngredientId: Int? = null,
     @SerialName("typeName") val typeName: String? = null,
     @SerialName("extraCost") val extraCost: Double? = null,
     @SerialName("isDefault") val isDefault: Boolean? = null,
     @SerialName("processedQty") val processedQty: Float? = null,
+    @SerialName("producedQty") val producedQty: Float? = null,
     @SerialName("volumes") val volumes: List<DrinkSlotVolume> = emptyList()
 )
 
@@ -263,10 +266,12 @@ data class DrinkSlotTypeOption(
 data class DrinkSlotOption(
     @SerialName("optionId") val optionId: Int? = null,
     @SerialName("label") val label: String? = null,
+    @SerialName("linkedIngredientId") val linkedIngredientId: Int? = null,
     @SerialName("extraCost") val extraCost: Double? = null,
     @SerialName("isDefault") val isDefault: Boolean? = null,
     @SerialName("isAvailable") val isAvailable: Boolean? = null,
-    @SerialName("processedQty") val processedQty: Float? = null
+    @SerialName("processedQty") val processedQty: Float? = null,
+    @SerialName("producedQty") val producedQty: Float? = null
 )
 
 @Serializable
@@ -276,6 +281,8 @@ data class DrinkSlot(
     @SerialName("isRequired") val isRequired: Boolean? = null,
     @SerialName("slotStyle") val slotStyle: String? = null,
     @SerialName("customerSortOrder") val customerSortOrder: Int? = null,
+    @SerialName("isDynamic") val isDynamic: Boolean? = null,
+    @SerialName("affectsCupSize") val affectsCupSize: Boolean? = null,
     @SerialName("ingredientId") val ingredientId: Int? = null,
     @SerialName("options") val options: List<DrinkSlotOption> = emptyList(),
     @SerialName("typeOptions") val typeOptions: List<DrinkSlotTypeOption> = emptyList()
@@ -517,4 +524,111 @@ data class ValidateDiscountResponse(
 data class MessageResponse(
     @SerialName("message") val message: String? = null,
     @SerialName("success") val success: Boolean? = null
+)
+
+// ---- Nutrition ----
+@Serializable
+data class NutritionFacts(
+    @SerialName("calories") val calories: Double? = null,
+    @SerialName("protein") val protein: Double? = null,
+    @SerialName("totalCarbs") val totalCarbs: Double? = null,
+    @SerialName("dietaryFiber") val dietaryFiber: Double? = null,
+    @SerialName("totalSugars") val totalSugars: Double? = null,
+    @SerialName("addedSugars") val addedSugars: Double? = null,
+    @SerialName("totalFat") val totalFat: Double? = null,
+    @SerialName("saturatedFat") val saturatedFat: Double? = null,
+    @SerialName("transFat") val transFat: Double? = null,
+    @SerialName("cholesterol") val cholesterol: Double? = null,
+    @SerialName("sodium") val sodium: Double? = null,
+    @SerialName("caffeine") val caffeine: Double? = null,
+    @SerialName("allergens") val allergens: List<String> = emptyList()
+)
+
+@Serializable
+data class NutritionCalculateResponse(
+    @SerialName("nutrition") val nutrition: NutritionFacts? = null
+)
+
+@Serializable
+data class NutritionCalculateRequest(
+    @SerialName("drinkId") val drinkId: Int,
+    @SerialName("selections") val selections: List<DrinkSelection> = emptyList()
+)
+
+// Per-ingredient nutrition facts (serving-based), used for local computation on
+// the customize screen. Mirrors the backend ingredient_nutrition row.
+@Serializable
+data class IngredientNutrition(
+    @SerialName("ingredientId") val ingredientId: Int? = null,
+    @SerialName("servingSizeQty") val servingSizeQty: String? = null,
+    @SerialName("servingSizeUnit") val servingSizeUnit: String? = null,
+    @SerialName("calories") val calories: String? = null,
+    @SerialName("protein") val protein: String? = null,
+    @SerialName("totalCarbs") val totalCarbs: String? = null,
+    @SerialName("dietaryFiber") val dietaryFiber: String? = null,
+    @SerialName("totalSugars") val totalSugars: String? = null,
+    @SerialName("addedSugars") val addedSugars: String? = null,
+    @SerialName("totalFat") val totalFat: String? = null,
+    @SerialName("saturatedFat") val saturatedFat: String? = null,
+    @SerialName("transFat") val transFat: String? = null,
+    @SerialName("cholesterol") val cholesterol: String? = null,
+    @SerialName("sodium") val sodium: String? = null,
+    @SerialName("caffeine") val caffeine: String? = null,
+    @SerialName("allergens") val allergens: List<String> = emptyList()
+)
+
+@Serializable
+data class NutritionIngredientsResponse(
+    @SerialName("drinkId") val drinkId: Int? = null,
+    @SerialName("ingredients") val ingredients: Map<String, IngredientNutrition> = emptyMap()
+)
+
+@Serializable
+data class NutritionGoals(
+    @SerialName("dailyCalorieGoal") val dailyCalorieGoal: Int? = null,
+    @SerialName("dailyCaffeineLimit") val dailyCaffeineLimit: Int? = null,
+    @SerialName("dailySugarLimit") val dailySugarLimit: Int? = null,
+    @SerialName("dailyProteinGoal") val dailyProteinGoal: Int? = null,
+    @SerialName("dailyCarbLimit") val dailyCarbLimit: Int? = null,
+    @SerialName("dailyFatLimit") val dailyFatLimit: Int? = null,
+    @SerialName("dietaryPreferences") val dietaryPreferences: List<String> = emptyList()
+)
+
+@Serializable
+data class NutritionToday(
+    @SerialName("calories") val calories: Double? = null,
+    @SerialName("protein") val protein: Double? = null,
+    @SerialName("totalCarbs") val totalCarbs: Double? = null,
+    @SerialName("dietaryFiber") val dietaryFiber: Double? = null,
+    @SerialName("totalSugars") val totalSugars: Double? = null,
+    @SerialName("addedSugars") val addedSugars: Double? = null,
+    @SerialName("totalFat") val totalFat: Double? = null,
+    @SerialName("saturatedFat") val saturatedFat: Double? = null,
+    @SerialName("transFat") val transFat: Double? = null,
+    @SerialName("cholesterol") val cholesterol: Double? = null,
+    @SerialName("sodium") val sodium: Double? = null,
+    @SerialName("caffeine") val caffeine: Double? = null,
+    @SerialName("itemsCount") val itemsCount: Int? = null,
+    @SerialName("allergensConsumed") val allergensConsumed: List<String> = emptyList()
+)
+
+@Serializable
+data class NutritionSummaryResponse(
+    @SerialName("goals") val goals: NutritionGoals? = null,
+    @SerialName("today") val today: NutritionToday? = null
+)
+
+@Serializable
+data class NutritionHistoryBucket(
+    @SerialName("period") val period: String? = null,
+    @SerialName("start") val start: String? = null,
+    @SerialName("totals") val totals: NutritionFacts? = null,
+    @SerialName("itemsCount") val itemsCount: Int? = null,
+    @SerialName("drinks") val drinks: Map<String, Int> = emptyMap()
+)
+
+@Serializable
+data class NutritionHistoryResponse(
+    @SerialName("period") val period: String? = null,
+    @SerialName("series") val series: List<NutritionHistoryBucket> = emptyList()
 )

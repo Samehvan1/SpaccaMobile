@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.LocalDining
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Star
@@ -67,6 +68,7 @@ private val moreItems = listOf(
     MoreItem("My Points", Icons.Filled.Star),
     MoreItem("My Favorites", Icons.Filled.Favorite),
     MoreItem("My Customized Drinks", Icons.Filled.Bookmark),
+    MoreItem("Nutrition History", Icons.Filled.LocalDining),
     MoreItem("Terms & Conditions", Icons.Filled.Description),
     MoreItem("Privacy Policy", Icons.Filled.PrivacyTip),
     MoreItem("API Server", Icons.Filled.Dns)
@@ -80,7 +82,8 @@ fun MoreScreen(
     onFavorites: () -> Unit = {},
     onSavedCustomizedProducts: () -> Unit = {},
     onTerms: () -> Unit = {},
-    onPrivacy: () -> Unit = {}
+    onPrivacy: () -> Unit = {},
+    onNutrition: () -> Unit = {}
 ) {
     val actions = mapOf(
         "My Profile" to onProfile,
@@ -88,6 +91,7 @@ fun MoreScreen(
         "My Points" to onPoints,
         "My Favorites" to onFavorites,
         "My Customized Drinks" to onSavedCustomizedProducts,
+        "Nutrition History" to onNutrition,
         "Terms & Conditions" to onTerms,
         "Privacy Policy" to onPrivacy
     )

@@ -9,9 +9,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.backhandler.BackHandler
 import com.spacca.app.data.BranchStore
 import com.spacca.app.data.CartStore
 import com.spacca.app.data.location.LocationStore
@@ -25,6 +28,15 @@ import com.spacca.app.ui.screens.home.HomeScreen
 import com.spacca.app.ui.screens.more.MoreScreen
 import org.koin.compose.koinInject
 
+// Persists the selected tab across navigation (e.g. More -> Profile -> back
+// must return to the More tab, not reset to Home). Saved by enum name so it
+// works on every platform.
+private val BottomTabSaver = Saver<BottomTab, String>(
+    save = { it.name },
+    restore = { name -> BottomTab.entries.firstOrNull { it.name == name } ?: BottomTab.HOME }
+)
+
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun MainScreen(
     onSearchClick: () -> Unit = {},
@@ -38,11 +50,18 @@ fun MainScreen(
     onSavedCustomizedProducts: () -> Unit = {},
     onTerms: () -> Unit = {},
     onPrivacy: () -> Unit = {},
+    onNutrition: () -> Unit = {},
     onProductClick: (HomeProduct) -> Unit = {}
 ) {
-    var currentTab by remember { mutableStateOf(BottomTab.HOME) }
+    var currentTab by rememberSaveable(stateSaver = BottomTabSaver) { mutableStateOf(BottomTab.HOME) }
     val cartStore = koinInject<CartStore>()
     val cartLines by cartStore.lines.collectAsState()
+
+    // System back on any tab except Home returns to the Home tab instead of
+    // exiting the app. On Home, the default back behavior (exit) is preserved.
+    BackHandler(enabled = currentTab != BottomTab.HOME) {
+        currentTab = BottomTab.HOME
+    }
 
     // On app open (main shell first appears), load branches and capture the
     // current location so the nearest branch can be determined.
@@ -90,7 +109,8 @@ fun MainScreen(
                     onFavorites = onFavorites,
                     onSavedCustomizedProducts = onSavedCustomizedProducts,
                     onTerms = onTerms,
-                    onPrivacy = onPrivacy
+                    onPrivacy = onPrivacy,
+                    onNutrition = onNutrition
                 )
             }
         }

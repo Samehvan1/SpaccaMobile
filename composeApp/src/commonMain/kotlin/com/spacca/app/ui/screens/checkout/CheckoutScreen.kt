@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.Schedule
@@ -324,6 +325,37 @@ fun CheckoutScreen(
                     fontColor = LightGrey,
                     modifier = Modifier.padding(top = 4.dp)
                 )
+            }
+
+            // Cash payments are settled at the branch counter, not online.
+            if (paymentMethods.getOrNull(selectedPayment)?.value == "cash") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(BackgroundSecondary)
+                        .border(
+                            width = 1.dp,
+                            color = AccentGreen,
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Info,
+                        contentDescription = null,
+                        tint = AccentGreen,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    DefaultText(
+                        text = "Order will be pending payment at branch",
+                        fontSize = 13,
+                        fontColor = White
+                    )
+                }
             }
         }
 

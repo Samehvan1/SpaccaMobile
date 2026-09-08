@@ -32,6 +32,7 @@ import com.spacca.app.ui.screens.main.MainScreen
 import com.spacca.app.ui.screens.more.MoreScreen
 import com.spacca.app.ui.screens.more.PrivacyPolicyScreen
 import com.spacca.app.ui.screens.more.TermsAndConditionsScreen
+import com.spacca.app.ui.screens.nutrition.NutritionHistoryScreen
 import com.spacca.app.ui.screens.onboarding.OnboardingScreen
 import com.spacca.app.ui.screens.order.OrderConfirmationScreen
 import com.spacca.app.ui.screens.order.OrderDetailsScreen
@@ -89,6 +90,7 @@ object Routes {
     const val SAVED_DRINKS = "saved_drinks"
     const val SAVED_CUSTOMIZED_PRODUCTS = "saved_customized_products"
     const val FRIENDS = "friends"
+    const val NUTRITION_HISTORY = "nutrition_history"
     const val TERMS = "terms"
     const val PRIVACY = "privacy"
 }
@@ -223,6 +225,7 @@ fun AppNavHost() {
                 onSavedCustomizedProducts = { navController.navigate(Routes.SAVED_CUSTOMIZED_PRODUCTS) },
                 onTerms = { navController.navigate(Routes.TERMS) },
                 onPrivacy = { navController.navigate(Routes.PRIVACY) },
+                onNutrition = { navController.navigate(Routes.NUTRITION_HISTORY) },
                 onProductClick = { product ->
                     navController.navigate(
                         "${Routes.PRODUCT}?drinkId=${product.id}&name=${product.name ?: ""}&price=${product.price?.toDoubleOrNull() ?: 0.0}&customizable=false&imageUrl=${product.image ?: ""}"
@@ -503,6 +506,9 @@ fun AppNavHost() {
         }
         composable(Routes.FRIENDS) {
             FriendsScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.NUTRITION_HISTORY) {
+            NutritionHistoryScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.TERMS) {
             TermsAndConditionsScreen(onBack = { navController.popBackStack() })

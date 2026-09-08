@@ -28,6 +28,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,6 +44,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.spacca.app.util.formatPrice
 import com.spacca.app.util.formatWhole
@@ -52,6 +54,10 @@ import com.spacca.app.data.model.DrinkSlot
 import com.spacca.app.data.model.DrinkSlotOption
 import com.spacca.app.data.model.DrinkSlotTypeOption
 import com.spacca.app.data.model.DrinkSlotVolume
+import com.spacca.app.data.ApiService
+import com.spacca.app.data.model.IngredientNutrition
+import com.spacca.app.data.model.NutritionFacts
+import com.spacca.app.ui.components.CupLayer
 import com.spacca.app.ui.components.CupSimulator
 import com.spacca.app.ui.components.DefaultButton
 import com.spacca.app.ui.components.ButtonVariant
@@ -68,6 +74,7 @@ import com.spacca.app.ui.theme.DarkBorder
 import com.spacca.app.ui.theme.Grey
 import com.spacca.app.ui.theme.LightGrey
 import com.spacca.app.ui.theme.MediumGrey
+import com.spacca.app.ui.theme.Red
 import com.spacca.app.ui.theme.White
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -160,22 +167,22 @@ fun CustomizationScreen(
 
         // Fixed header: drink name + price + CupSimulatorSection
         Column(
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp)
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 DefaultText(
                     text = name,
-                    fontSize = 20,
+                    fontSize = 14,
                     fontWeight = FontWeight.Bold
                 )
                 DefaultText(
                     text = " (Base EGP ${price.formatPrice()})",
-                    fontSize = 13,
+                    fontSize = 10,
                     fontColor = AccentGreen
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             if (cupSizeMl != null) {
                 // It's a drink (has a cup size) -> show the cup simulator.
@@ -183,10 +190,11 @@ fun CustomizationScreen(
                     CupSimulatorSection(
                         slots = visibleSlots,
                         selections = selections,
+                        drinkId = drinkId,
                         cupSizeMl = cupSizeMl,
                         showSmoke = drinkCategory?.contains("Hot", ignoreCase = true) == true
                     )
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                 }
             } else {
                 // No cup size -> it's dessert/bakery/etc., not a drink.
@@ -194,7 +202,7 @@ fun CustomizationScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(200.dp)
+                        .height(160.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(BackgroundSecondary)
                         .border(
@@ -208,10 +216,10 @@ fun CustomizationScreen(
                         imageUrl = productImage,
                         contentDescription = name,
                         contentScale = ContentScale.Fit,
-                        modifier = Modifier.size(160.dp)
+                        modifier = Modifier.size(140.dp)
                     )
                 }
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(8.dp))
             }
         }
 
@@ -364,7 +372,7 @@ private fun SlotSection(
         ) {
             DefaultText(
                 text = slot.slotLabel ?: "Option",
-                fontSize = 15,
+                fontSize = 13,
                 fontWeight = FontWeight.SemiBold,
                 fontColor = White
             )
@@ -377,7 +385,7 @@ private fun SlotSection(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         val isTyped = slot.slotStyle == "typed" && slot.typeOptions.isNotEmpty()
 
@@ -416,7 +424,7 @@ private fun SlotSection(
             } ?: slot.typeOptions.firstOrNull { it.isDefault == true } ?: slot.typeOptions.firstOrNull()
 
             if (selectedType != null && selectedType.volumes.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -426,7 +434,7 @@ private fun SlotSection(
                         ChoiceChip(
                             text = volumeLabel(vol),
                             selected = selection?.typeVolumeId == vol.typeVolumeId,
-                            fontSize = 11,
+                            fontSize = 10,
                             onClick = {
                                 if (vol.typeVolumeId != null) {
                                     onSelect(
@@ -476,7 +484,7 @@ private fun ChoiceChip(
     text: String,
     selected: Boolean,
     onClick: () -> Unit,
-    fontSize: Int = 13
+    fontSize: Int = 11
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val scale = remember { Animatable(1f) }
@@ -518,7 +526,7 @@ private fun ChoiceChip(
                 indication = null,
                 onClick = onClick
             )
-            .padding(horizontal = 14.dp, vertical = 10.dp)
+            .padding(horizontal = 10.dp, vertical = 6.dp)
     ) {
         DefaultText(
             text = text,
@@ -618,15 +626,37 @@ private fun legacyOptionLabel(opt: DrinkSlotOption): String {
     return if (cost > 0) "${opt.label ?: "Option"} (+${cost.formatWhole()})" else (opt.label ?: "Option")
 }
 
-// Two-column section: ingredient summary (left) + 3D cup simulator (right).
+// Section: ingredient summary (left) + 3D cup simulator (right), with the
+// nutrition facts displayed below them (full width).
 @Composable
 private fun CupSimulatorSection(
     slots: List<DrinkSlot>,
     selections: Map<Int, DrinkSelection>,
+    drinkId: Int,
     cupSizeMl: Int? = null,
     showSmoke: Boolean = true
 ) {
+    val api = koinInject<ApiService>()
     val layers = buildCupLayers(slots, selections, cupSizeMl)
+
+    // Fetch per-ingredient nutrition map ONCE per drink (no per-selection calls).
+    var ingredientNutMap by remember { mutableStateOf<Map<String, IngredientNutrition>>(emptyMap()) }
+    var nutritionLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(drinkId) {
+        nutritionLoading = true
+        ingredientNutMap = try {
+            api.nutritionIngredients(drinkId)
+        } catch (_: Exception) {
+            emptyMap()
+        }
+        nutritionLoading = false
+    }
+
+    // Compute nutrition facts locally from selections + ingredient map.
+    // Computed directly (like buildCupLayers) since selections is a
+    // mutableStateMapOf whose reference stays stable across content changes.
+    val nutritionFacts = computeNutritionFromSelections(slots, selections, ingredientNutMap, layers)
 
     Column(
         modifier = Modifier
@@ -638,7 +668,7 @@ private fun CupSimulatorSection(
                 color = DarkBorder,
                 shape = RoundedCornerShape(12.dp)
             )
-            .padding(16.dp)
+            .padding(12.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -647,16 +677,258 @@ private fun CupSimulatorSection(
             IngredientSummary(
                 slots = slots,
                 selections = selections,
-                modifier = Modifier.weight(0.35f)
+                modifier = Modifier.weight(0.45f)
             )
             CupSimulator(
                 layers = layers,
                 cupSizeMl = cupSizeMl,
                 showSmoke = showSmoke,
                 modifier = Modifier
-                    .weight(0.65f)
-                    .height(180.dp)
+                    .weight(0.55f)
+                    .height(140.dp)
             )
         }
+        Spacer(modifier = Modifier.height(4.dp))
+        NutritionFactsColumn(
+            facts = nutritionFacts,
+            loading = nutritionLoading,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+/**
+ * Resolves each selected slot to {ingredientId, consumedQty} and sums nutrition
+ * locally using the per-ingredient serving facts. Mirrors the backend
+ * calculateCustomizationNutrition math: (consumedQty / servingSizeQty) * perServing.
+ *
+ * Dynamic fillers (milk/water/cream) have no fixed processedQty — their consumed
+ * volume is the remaining cup space. That is already computed by buildCupLayers,
+ * so we reuse its layer volume here instead of duplicating the fill logic.
+ */
+private fun computeNutritionFromSelections(
+    slots: List<DrinkSlot>,
+    selections: Map<Int, DrinkSelection>,
+    ingredientNutMap: Map<String, IngredientNutrition>,
+    layers: List<CupLayer>
+): NutritionFacts? {
+    if (ingredientNutMap.isEmpty()) return null
+
+    data class IngredientQty(val ingredientId: Int, val consumedQty: Double)
+
+    val layerBySlot = layers.associateBy { it.slotId }
+
+    val resolved = mutableListOf<IngredientQty>()
+    for (slot in slots) {
+        val sid = slot.slotId ?: continue
+        val selection = selections[sid] ?: continue
+        val layer = layerBySlot[sid]
+
+        if (slot.slotStyle == "typed") {
+            val typeOpt = slot.typeOptions.firstOrNull { it.ingredientTypeId == selection.ingredientTypeId }
+                ?: continue
+            val ingredientId = typeOpt.inventoryIngredientId ?: continue
+            val consumedQty: Double = if (layer?.isDynamic == true) {
+                // Dynamic filler: volume already resolved by buildCupLayers
+                // as the remaining cup space.
+                layer.volumeMl.toDouble()
+            } else if (selection.typeVolumeId != null) {
+                typeOpt.volumes.firstOrNull { it.typeVolumeId == selection.typeVolumeId }
+                    ?.processedQty?.toDouble()
+                    ?: typeOpt.processedQty?.toDouble() ?: 0.0
+            } else {
+                typeOpt.processedQty?.toDouble() ?: 0.0
+            }
+            if (consumedQty > 0) resolved.add(IngredientQty(ingredientId, consumedQty))
+        } else {
+            val opt = slot.options.firstOrNull { it.optionId == selection.optionId } ?: continue
+            val ingredientId = opt.linkedIngredientId ?: slot.ingredientId ?: continue
+            val consumedQty = opt.processedQty?.toDouble() ?: 0.0
+            if (consumedQty > 0) resolved.add(IngredientQty(ingredientId, consumedQty))
+        }
+    }
+
+    if (resolved.isEmpty()) return NutritionFacts()
+
+    var calories = 0.0
+    var protein = 0.0
+    var totalCarbs = 0.0
+    var dietaryFiber = 0.0
+    var totalSugars = 0.0
+    var addedSugars = 0.0
+    var totalFat = 0.0
+    var saturatedFat = 0.0
+    var transFat = 0.0
+    var cholesterol = 0.0
+    var sodium = 0.0
+    var caffeine = 0.0
+    val allergenSet = linkedSetOf<String>()
+
+    for (r in resolved) {
+        val info = ingredientNutMap[r.ingredientId.toString()] ?: continue
+        val servingQty = info.servingSizeQty?.toDoubleOrNull() ?: 1.0
+        val factor = if (servingQty > 0) r.consumedQty / servingQty else 0.0
+        if (factor <= 0) continue
+
+        calories += (info.calories?.toDoubleOrNull() ?: 0.0) * factor
+        protein += (info.protein?.toDoubleOrNull() ?: 0.0) * factor
+        totalCarbs += (info.totalCarbs?.toDoubleOrNull() ?: 0.0) * factor
+        dietaryFiber += (info.dietaryFiber?.toDoubleOrNull() ?: 0.0) * factor
+        totalSugars += (info.totalSugars?.toDoubleOrNull() ?: 0.0) * factor
+        addedSugars += (info.addedSugars?.toDoubleOrNull() ?: 0.0) * factor
+        totalFat += (info.totalFat?.toDoubleOrNull() ?: 0.0) * factor
+        saturatedFat += (info.saturatedFat?.toDoubleOrNull() ?: 0.0) * factor
+        transFat += (info.transFat?.toDoubleOrNull() ?: 0.0) * factor
+        cholesterol += (info.cholesterol?.toDoubleOrNull() ?: 0.0) * factor
+        sodium += (info.sodium?.toDoubleOrNull() ?: 0.0) * factor
+        caffeine += (info.caffeine?.toDoubleOrNull() ?: 0.0) * factor
+        info.allergens.forEach { allergenSet.add(it) }
+    }
+
+    return NutritionFacts(
+        calories = kotlin.math.round(calories),
+        protein = roundNutrition1(protein),
+        totalCarbs = roundNutrition1(totalCarbs),
+        dietaryFiber = roundNutrition1(dietaryFiber),
+        totalSugars = roundNutrition1(totalSugars),
+        addedSugars = roundNutrition1(addedSugars),
+        totalFat = roundNutrition1(totalFat),
+        saturatedFat = roundNutrition1(saturatedFat),
+        transFat = roundNutrition1(transFat),
+        cholesterol = roundNutrition1(cholesterol),
+        sodium = roundNutrition1(sodium),
+        caffeine = roundNutrition1(caffeine),
+        allergens = allergenSet.toList()
+    )
+}
+
+private fun roundNutrition1(v: Double): Double = kotlin.math.round(v * 10.0) / 10.0
+
+// Nutrition facts display — 2-column grid on a distinct darker panel.
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun NutritionFactsColumn(
+    facts: NutritionFacts?,
+    loading: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(BackgroundPrimary)
+            .border(
+                width = 1.dp,
+                color = DarkBorder,
+                shape = RoundedCornerShape(10.dp)
+            )
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        DefaultText(
+            text = "Nutrition",
+            fontSize = 12,
+            fontWeight = FontWeight.SemiBold,
+            fontColor = AccentGreen
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+
+        if (loading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(18.dp),
+                strokeWidth = 2.dp,
+                color = MediumGrey
+            )
+        } else if (facts == null) {
+            DefaultText(
+                text = "—",
+                fontSize = 11,
+                fontColor = MediumGrey
+            )
+        } else {
+            // Only display values > 0
+            data class NutritionRow(val label: String, val value: String)
+
+            val rows = listOfNotNull(
+                facts.calories?.takeIf { it > 0.0 }?.let {
+                    NutritionRow("Calories", "${it.toLong()} kcal")
+                },
+                facts.protein?.takeIf { it > 0.0 }?.let {
+                    NutritionRow("Protein", formatNutritionNum(it) + "g")
+                },
+                facts.totalCarbs?.takeIf { it > 0.0 }?.let {
+                    NutritionRow("Carbs", formatNutritionNum(it) + "g")
+                },
+                facts.totalSugars?.takeIf { it > 0.0 }?.let {
+                    NutritionRow("Sugars", formatNutritionNum(it) + "g")
+                },
+                facts.totalFat?.takeIf { it > 0.0 }?.let {
+                    NutritionRow("Fat", formatNutritionNum(it) + "g")
+                },
+                facts.sodium?.takeIf { it > 0.0 }?.let {
+                    NutritionRow("Sodium", formatNutritionNum(it) + "mg")
+                },
+                facts.caffeine?.takeIf { it > 0.0 }?.let {
+                    NutritionRow("Caffeine", formatNutritionNum(it) + "mg")
+                }
+            )
+
+            if (rows.isEmpty()) {
+                DefaultText(
+                    text = "No data",
+                    fontSize = 11,
+                    fontColor = MediumGrey
+                )
+            } else {
+                // 2-column grid to save vertical space
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    maxItemsInEachRow = 2,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    rows.forEach { row ->
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            DefaultText(
+                                text = row.label,
+                                fontSize = 11,
+                                fontColor = Grey
+                            )
+                            DefaultText(
+                                text = row.value,
+                                fontSize = 11,
+                                fontColor = White,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Allergens badge (red)
+            if (facts.allergens.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                DefaultText(
+                    text = "Allergens: ${facts.allergens.joinToString(", ")}",
+                    fontSize = 10,
+                    fontColor = Red,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+/** Format a nutrition double — show decimal only when non-zero fractional part. */
+private fun formatNutritionNum(value: Double): String {
+    return if (value == value.toLong().toDouble()) {
+        value.toLong().toString()
+    } else {
+        val s = "%.1f".format(value)
+        // strip trailing .0 if any
+        if (s.endsWith(".0")) s.dropLast(2) else s
     }
 }

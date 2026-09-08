@@ -182,4 +182,22 @@ class ApiService(
 
     suspend fun cancelOrder(id: Int): MessageResponse =
         client.post("/api/mobile/orders/$id/cancel").body()
+
+    // ---- Nutrition ----
+    suspend fun nutritionCalculate(drinkId: Int, selections: List<DrinkSelection>): NutritionFacts? =
+        client.post("/api/mobile/nutrition/calculate") {
+            setBody(NutritionCalculateRequest(drinkId, selections))
+        }.body<NutritionCalculateResponse>().nutrition
+
+    /** Per-ingredient nutrition map for a drink's recipe — fetched once per drink. */
+    suspend fun nutritionIngredients(drinkId: Int): Map<String, IngredientNutrition> =
+        client.get("/api/mobile/nutrition/ingredients") { url { parameters.append("drinkId", drinkId.toString()) } }
+            .body<NutritionIngredientsResponse>().ingredients
+
+    suspend fun nutritionSummary(): NutritionSummaryResponse =
+        client.get("/api/mobile/nutrition/summary").body()
+
+    suspend fun nutritionHistory(period: String): NutritionHistoryResponse =
+        client.get("/api/mobile/nutrition/history") { url { parameters.append("period", period) } }
+            .body()
 }
